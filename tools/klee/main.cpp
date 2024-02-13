@@ -24,6 +24,8 @@
 #include "klee/Support/PrintVersion.h"
 #include "klee/System/Time.h"
 
+#include "klee/MT/Mutator.h"
+
 #include "klee/Support/CompilerWarning.h"
 DISABLE_WARNING_PUSH
 DISABLE_WARNING_DEPRECATED_DECLARATIONS
@@ -61,8 +63,19 @@ DISABLE_WARNING_POP
 #include <iterator>
 #include <sstream>
 
+//MISE (DEBUG): added iostream
+#include <iostream>
+
 using namespace llvm;
 using namespace klee;
+
+//MISE (DEBUG): added to simulate a breakpoint
+//TO-DO: remove this
+void stop(int s){
+  std::cout << "Parada " << s << std::endl;
+  while ( getchar() != '\n')
+  ;
+}
 
 namespace {
   cl::opt<std::string>
@@ -330,6 +343,11 @@ public:
   void processTestCase(const ExecutionState  &state,
                        const char *errorMessage,
                        const char *errorSuffix);
+
+  //MISE: processTestCase with support for mutations
+  void processTestCaseMISE(const ExecutionState &state,
+                            const char *errorMessage,
+                            const char *errorSuffix);
 
   std::string getOutputFilename(const std::string &filename);
   std::unique_ptr<llvm::raw_fd_ostream> openOutputFile(const std::string &filename);
@@ -607,6 +625,139 @@ void KleeHandler::processTestCase(const ExecutionState &state,
     klee_error("EXITING ON ERROR:\n%s\n", errorMessage);
   }
 }
+
+//MISE: Overloaded processTestCase to support mutations
+/* Outputs all files (.ktest, .kquery, .cov etc.) describing a test case */
+void KleeHandler::processTestCaseMISE(const ExecutionState &state,
+                                  const char *errorMessage,
+                                  const char *errorSuffix) {
+  if (!WriteNone) {
+    Mutator m;
+    std::vector< std::pair<std::string, std::vector<unsigned char> > > out;
+    bool success = m_interpreter->getSymbolicSolution(state, out);
+
+    if (!success)
+      klee_warning("unable to get symbolic solution, losing test case");
+
+    const auto start_time = time::getWallTime();
+
+    unsigned id = ++m_numTotalTests;
+
+    if (success) {
+      KTest b;
+      b.numArgs = m_argc;
+      b.args = m_argv;
+      b.symArgvs = 0;
+      b.symArgvLen = 0;
+      b.numObjects = out.size();
+      b.objects = new KTestObject[b.numObjects];
+      assert(b.objects);
+      for (unsigned i=0; i<b.numObjects; i++) {
+        KTestObject *o = &b.objects[i];
+        o->name = const_cast<char*>(out[i].first.c_str());
+        o->numBytes = out[i].second.size();
+        o->bytes = new unsigned char[o->numBytes];
+        assert(o->bytes);
+        std::copy(out[i].second.begin(), out[i].second.end(), o->bytes);
+      }
+
+      if (!kTest_toFile(&b, getOutputFilename(getTestFilename("ktest", id)).c_str())) {
+        klee_warning("unable to write output test case, losing it");
+      } else {
+        ++m_numGeneratedTests;
+      }
+
+      for (unsigned i=0; i<b.numObjects; i++)
+        delete[] b.objects[i].bytes;
+      delete[] b.objects;
+    }
+
+    if (errorMessage) {
+      auto f = openTestFile(errorSuffix, id);
+      if (f)
+        *f << errorMessage;
+    }
+
+    if (m_pathWriter) {
+      std::vector<unsigned char> concreteBranches;
+      m_pathWriter->readStream(m_interpreter->getPathStreamID(state),
+                               concreteBranches);
+      auto f = openTestFile("path", id);
+      if (f) {
+        for (const auto &branch : concreteBranches) {
+          *f << branch << '\n';
+        }
+      }
+    }
+
+    if (errorMessage || WriteKQueries) {
+      std::string constraints;
+      m_interpreter->getConstraintLog(state, constraints,Interpreter::KQUERY);
+      auto f = openTestFile("kquery", id);
+      if (f)
+        *f << constraints;
+    }
+
+    if (WriteCVCs) {
+      // FIXME: If using Z3 as the core solver the emitted file is actually
+      // SMT-LIBv2 not CVC which is a bit confusing
+      std::string constraints;
+      m_interpreter->getConstraintLog(state, constraints, Interpreter::STP);
+      auto f = openTestFile("cvc", id);
+      if (f)
+        *f << constraints;
+    }
+
+    if (WriteSMT2s) {
+      std::string constraints;
+        m_interpreter->getConstraintLog(state, constraints, Interpreter::SMTLIB2);
+        auto f = openTestFile("smt2", id);
+        if (f)
+          *f << constraints;
+    }
+
+    if (m_symPathWriter) {
+      std::vector<unsigned char> symbolicBranches;
+      m_symPathWriter->readStream(m_interpreter->getSymbolicPathStreamID(state),
+                                  symbolicBranches);
+      auto f = openTestFile("sym.path", id);
+      if (f) {
+        for (const auto &branch : symbolicBranches) {
+          *f << branch << '\n';
+        }
+      }
+    }
+
+    if (WriteCov) {
+      std::map<const std::string*, std::set<unsigned> > cov;
+      m_interpreter->getCoveredLines(state, cov);
+      auto f = openTestFile("cov", id);
+      if (f) {
+        for (const auto &entry : cov) {
+          for (const auto &line : entry.second) {
+            *f << *entry.first << ':' << line << '\n';
+          }
+        }
+      }
+    }
+
+    if (m_numGeneratedTests == MaxTests)
+      m_interpreter->setHaltExecution(true);
+
+    if (WriteTestInfo) {
+      time::Span elapsed_time(time::getWallTime() - start_time);
+      auto f = openTestFile("info", id);
+      if (f)
+        *f << "Time to generate test case: " << elapsed_time << '\n';
+    }
+  } // if (!WriteNone)
+
+  if (errorMessage && OptExitOnError) {
+    m_interpreter->prepareForEarlyExit();
+    klee_error("EXITING ON ERROR:\n%s\n", errorMessage);
+  }
+}
+
 
   // load a .path file
 void KleeHandler::loadPathFile(std::string name,

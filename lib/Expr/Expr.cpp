@@ -172,6 +172,77 @@ void Expr::printKind(llvm::raw_ostream &os, Kind k) {
     }
 }
 
+//MISE: Overloaded
+void Expr::printKind(std::ostringstream &os, Kind k) {
+  switch(k) {
+#define X(C) case C: os << #C; break
+    X(Constant);
+    X(NotOptimized);
+    X(Read);
+    X(Select);
+    X(Concat);
+    X(Extract);
+    X(ZExt);
+    X(SExt);
+    X(Add);
+    X(Sub);
+    X(Mul);
+    X(UDiv);
+    X(SDiv);
+    X(URem);
+    X(SRem);
+    X(Not);
+    X(And);
+    X(Or);
+    X(Xor);
+    X(Shl);
+    X(LShr);
+    X(AShr);
+    X(Eq);
+    X(Ne);
+    X(Ult);
+    X(Ule);
+    X(Ugt);
+    X(Uge);
+    X(Slt);
+    X(Sle);
+    X(Sgt);
+    X(Sge);
+#undef X
+  default:
+    assert(0 && "invalid kind");
+    }
+}
+
+//MISE: Conversion to string.
+//This allows an easier modification of Exprs
+std::string Expr::printKindtoString() {
+  std::ostringstream oss;
+  std::string s;
+  printKind(oss, this->getKind());
+
+  s = oss.str();
+  return s;
+}
+
+std::string Expr::printValuetoString() {
+  std::string s;
+
+  llvm::raw_string_ostream output(s);
+  print(output);
+
+  return s;
+}
+
+std::string Expr::printWidthtoString() {
+  std::ostringstream oss;
+  std::string s;
+  printWidth(oss, this->getWidth());
+
+  s = oss.str();
+  return s;
+}
+
 ////////
 //
 // Simple hash functions for various kinds of Exprs
@@ -303,6 +374,22 @@ ref<Expr> Expr::createFromKind(Kind k, std::vector<CreateArg> args) {
 
 
 void Expr::printWidth(llvm::raw_ostream &os, Width width) {
+  switch(width) {
+  case Expr::Bool: os << "Expr::Bool"; break;
+  case Expr::Int8: os << "Expr::Int8"; break;
+  case Expr::Int16: os << "Expr::Int16"; break;
+  case Expr::Int32: os << "Expr::Int32"; break;
+  case Expr::Int64: os << "Expr::Int64"; break;
+  case Expr::Fl80: os << "Expr::Fl80"; break;
+  case Expr::Int128: os << "Expr::Int128"; break;
+  case Expr::Int256: os << "Expr::Int256"; break;
+  case Expr::Int512: os << "Expr::Int512"; break;
+  default: os << "<invalid type: " << (unsigned) width << ">";
+  }
+}
+
+//MISE: Overloaded for ostringstream
+void Expr::printWidth(std::ostringstream &os, Width width) {
   switch(width) {
   case Expr::Bool: os << "Expr::Bool"; break;
   case Expr::Int8: os << "Expr::Int8"; break;

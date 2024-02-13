@@ -269,6 +269,13 @@ public:
   static void printKind(llvm::raw_ostream &os, Kind k);
   static void printWidth(llvm::raw_ostream &os, Expr::Width w);
 
+  //MISE: Overloaded 
+  static void printKind(std::ostringstream &os, Kind k);
+  static void printWidth(std::ostringstream &os, Expr::Width w);
+  std::string printKindtoString();
+  std::string printValuetoString();
+  std::string printWidthtoString();
+
   /// returns the smallest number of bytes in which the given width fits
   static inline unsigned getMinBytesForWidth(Width w) {
       return (w + 7) / 8;
