@@ -1,9 +1,12 @@
-#include "Mutator.h"
+#include "klee/MT/Mutator.h"
+#include "klee/Expr/Expr.h"
+#include "klee/Expr/Constraints.h"
+#include "klee/Expr/ExprBuilder.h"
+#include "klee/Support/ErrorHandling.h"
+
 #include <iostream>
 #include <vector>
 #include <string>
-
-
 
 void Mutator::printOriginalConstraints() {
   originalConstraints.printConstraints();
@@ -72,24 +75,24 @@ std::vector<ConstraintSet> Mutator::mutate(int type) {
   return mutate(originalConstraints, type);
 }
 
-std::multimap<std::string, std::vector<ConstraintSet>> Mutator::mutate(ConstraintSet cs) {
+/*std::multimap<std::string, std::vector<ConstraintSet>> Mutator::mutate(ConstraintSet cs) {
   std::multimap<std::string, std::vector<ConstraintSet>> result;
   std::vector<ConstraintSet> aux;
 
     aux.push_back(cs);
     result.insert(std::pair<std::string, std::vector<ConstraintSet>>("", aux));
     result.insert(std::pair<std::string, std::vector<ConstraintSet>>(".ROR", mutate(cs, 1)));
-    /*result.insert(std::pair<std::string, std::vector<ConstraintSet>>(".ARB", mutate(cs, 2)));
+    result.insert(std::pair<std::string, std::vector<ConstraintSet>>(".ARB", mutate(cs, 2)));
     result.insert(std::pair<std::string, std::vector<ConstraintSet>>(".AIS", mutate(cs, 3)));
     result.insert(std::pair<std::string, std::vector<ConstraintSet>>(".AIU", mutate(cs, 4)));
     result.insert(std::pair<std::string, std::vector<ConstraintSet>>(".COI", mutate(cs, 5)));
-    result.insert(std::pair<std::string, std::vector<ConstraintSet>>(".COR", mutate(cs, 6)));*/
+    result.insert(std::pair<std::string, std::vector<ConstraintSet>>(".COR", mutate(cs, 6)));
   return result;
 }
 
 std::multimap<std::string, std::vector<ConstraintSet>> Mutator::mutate() {
   return mutate(originalConstraints);
-}
+}*/
 
 std::vector<ConstraintSet> Mutator::applyMutations(ConstraintSet cs, std::string oldOp, std::string newOp) {
 

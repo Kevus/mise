@@ -634,7 +634,8 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
   if (!WriteNone) {
     Mutator m;
     std::vector< std::pair<std::string, std::vector<unsigned char> > > out;
-    bool success = m_interpreter->getSymbolicSolution(state, out);
+    std::vector< std::pair<std::string, std::vector<unsigned char> > > mutants;
+    bool success = m_interpreter->getSymbolicSolutionMISE(state, out, mutants);
 
     if (!success)
       klee_warning("unable to get symbolic solution, losing test case");

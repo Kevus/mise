@@ -47,6 +47,10 @@ public:
   virtual void processTestCase(const ExecutionState &state,
                                const char *err,
                                const char *suffix) = 0;
+                        
+  virtual void processTestCaseMISE(const ExecutionState &state,
+                               const char *err,
+                               const char *suffix) = 0;
 };
 
 class Interpreter {
@@ -161,6 +165,12 @@ public:
                                    std::pair<std::string,
                                    std::vector<unsigned char> > >
                                    &res) = 0;
+
+  //MISE. Overload of the previous method to return the mutants
+  virtual bool getSymbolicSolutionMISE(
+      const ExecutionState &state,
+      std::vector<std::pair<std::string, std::vector<unsigned char>>> &res,
+      std::vector<std::pair<std::string, std::vector<unsigned char>>> &resMutants) = 0;
 
   virtual void getCoveredLines(const ExecutionState &state,
                                std::map<const std::string*, std::set<unsigned> > &res) = 0;

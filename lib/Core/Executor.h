@@ -32,6 +32,8 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include "klee/MT/Mutator.h" //MISE
+
 #include <map>
 #include <memory>
 #include <set>
@@ -565,6 +567,13 @@ public:
   bool getSymbolicSolution(
       const ExecutionState &state,
       std::vector<std::pair<std::string, std::vector<unsigned char>>> &res)
+      override;
+
+  //MISE. Overloaded to support mutants.
+  bool getSymbolicSolutionMISE(
+      const ExecutionState &state,
+      std::vector<std::pair<std::string, std::vector<unsigned char>>> &res,
+      std::vector<std::pair<std::string, std::vector<unsigned char>>> &resMutants)
       override;
 
   void getCoveredLines(const ExecutionState &state,

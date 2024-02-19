@@ -19,11 +19,13 @@ class Mutator {
     Mutator(){}
     Mutator(ConstraintSet cs) : originalConstraints(cs){}
 
+    std::vector<ConstraintSet> mutate(ConstraintSet cs);
+
     std::vector<ConstraintSet> mutate(ConstraintSet cs, int type);
     std::vector<ConstraintSet> mutate(int type);
 
-    std::multimap<std::string, std::vector<ConstraintSet>> mutate(ConstraintSet cs);
-    std::multimap<std::string, std::vector<ConstraintSet>> mutate();
+    //std::multimap<std::string, std::vector<ConstraintSet>> mutate(ConstraintSet cs);
+    //std::multimap<std::string, std::vector<ConstraintSet>> mutate();
 
     //Count the possible mutations
     int countMutations(std::string op, ConstraintSet cs);

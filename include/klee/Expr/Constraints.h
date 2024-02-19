@@ -40,6 +40,13 @@ public:
     return constraints == b.constraints;
   }
 
+//MISE: Debug. Print constraints on screen
+void printConstraints() {
+  for(auto& c : constraints) {
+    c->dump();
+  }
+}
+
 private:
   constraints_ty constraints;
 };
