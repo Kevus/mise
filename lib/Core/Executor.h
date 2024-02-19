@@ -564,6 +564,10 @@ public:
                         Interpreter::LogType logFormat =
                             Interpreter::STP) override;
 
+  //MISE. Overloaded to support mutants.
+  void getConstraintLogMISE(ConstraintSet CS, std::string &res, 
+                      Interpreter::LogType logFormat = Interpreter::MISE) override;
+
   bool getSymbolicSolution(
       const ExecutionState &state,
       std::vector<std::pair<std::string, std::vector<unsigned char>>> &res)
@@ -573,7 +577,8 @@ public:
   bool getSymbolicSolutionMISE(
       const ExecutionState &state,
       std::vector<std::pair<std::string, std::vector<unsigned char>>> &res,
-      std::vector<std::pair<std::string, std::vector<unsigned char>>> &resMutants)
+      std::vector<std::pair<std::string, std::vector<unsigned char>>> &resMutants,
+      std::vector<ConstraintSet> &mutations)
       override;
 
   void getCoveredLines(const ExecutionState &state,

@@ -16,6 +16,8 @@
 #include <string>
 #include <vector>
 
+#include "klee/Expr/Constraints.h"
+
 struct KTest;
 
 namespace llvm {
@@ -77,7 +79,8 @@ public:
   {
 	  STP, //.CVC (STP's native language)
 	  KQUERY, //.KQUERY files (kQuery native language)
-	  SMTLIB2 //.SMT2 files (SMTLIB version 2 files)
+	  SMTLIB2, //.SMT2 files (SMTLIB version 2 files)
+    MISE //MISE: Mutated .KQUERY files
   };
 
   /// InterpreterOptions - Options varying the runtime behavior during
@@ -160,6 +163,9 @@ public:
                                 std::string &res,
                                 LogType logFormat = STP) = 0;
 
+  //MISE
+  virtual void getConstraintLogMISE(ConstraintSet CS, std::string &res, Interpreter::LogType logFormat) = 0;
+
   virtual bool getSymbolicSolution(const ExecutionState &state,
                                    std::vector<
                                    std::pair<std::string,
@@ -170,7 +176,8 @@ public:
   virtual bool getSymbolicSolutionMISE(
       const ExecutionState &state,
       std::vector<std::pair<std::string, std::vector<unsigned char>>> &res,
-      std::vector<std::pair<std::string, std::vector<unsigned char>>> &resMutants) = 0;
+      std::vector<std::pair<std::string, std::vector<unsigned char>>> &resMutants,
+      std::vector<ConstraintSet> &mutations) = 0;
 
   virtual void getCoveredLines(const ExecutionState &state,
                                std::map<const std::string*, std::set<unsigned> > &res) = 0;

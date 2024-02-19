@@ -8,8 +8,15 @@
 #include <vector>
 #include <string>
 
+using namespace klee;
+
 void Mutator::printOriginalConstraints() {
   originalConstraints.printConstraints();
+}
+
+std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs) {
+  std::vector<ConstraintSet> res = apply_ROR(cs);
+  return res;
 }
 
 std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs, int type) {

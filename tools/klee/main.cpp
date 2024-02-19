@@ -632,10 +632,10 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
                                   const char *errorMessage,
                                   const char *errorSuffix) {
   if (!WriteNone) {
-    Mutator m;
     std::vector< std::pair<std::string, std::vector<unsigned char> > > out;
     std::vector< std::pair<std::string, std::vector<unsigned char> > > mutants;
-    bool success = m_interpreter->getSymbolicSolutionMISE(state, out, mutants);
+    std::vector<ConstraintSet> mutations;
+    bool success = m_interpreter->getSymbolicSolutionMISE(state, out, mutants, mutations);
 
     if (!success)
       klee_warning("unable to get symbolic solution, losing test case");
@@ -671,7 +671,6 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
       for (unsigned i=0; i<b.numObjects; i++)
         delete[] b.objects[i].bytes;
       delete[] b.objects;
-    }
 
     if (errorMessage) {
       auto f = openTestFile(errorSuffix, id);
@@ -750,6 +749,122 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
       auto f = openTestFile("info", id);
       if (f)
         *f << "Time to generate test case: " << elapsed_time << '\n';
+    }
+
+
+      //do the same as above with each mutant
+      for (unsigned i=0; i<mutants.size(); i++) {
+        KTest m;
+        m.numArgs = m_argc;
+        m.args = m_argv;
+        m.symArgvs = 0;
+        m.symArgvLen = 0;
+        m.numObjects = out.size(); //MISE: necessary to process correct number
+        m.objects = new KTestObject[m.numObjects];
+        assert(m.objects);
+        for (unsigned j=0; j<m.numObjects; j++) {
+          KTestObject *o = &m.objects[j];
+          o->name = const_cast<char*>(mutants[i].first.c_str());
+          o->numBytes = mutants[i].second.size();
+          o->bytes = new unsigned char[o->numBytes];
+          assert(o->bytes);
+          std::copy(mutants[i].second.begin(), mutants[i].second.end(), o->bytes);
+        }
+
+        if (!kTest_toFile(&m, getOutputFilename(getTestFilename("ktest", ++id)).c_str())) {
+          klee_warning("unable to write output test case, losing it");
+          --id;
+        } else {
+          ++m_numGeneratedTests;
+        }
+
+        llvm::errs() << "id: " << id << "\n";
+
+        for (unsigned j=0; j<m.numObjects; j++)
+          delete[] m.objects[j].bytes;
+        delete[] m.objects;
+
+        if (errorMessage) {
+              auto f = openTestFile(errorSuffix, id);
+              if (f)
+                *f << errorMessage;
+           }
+
+            if (m_pathWriter) {
+              std::vector<unsigned char> concreteBranches;
+              m_pathWriter->readStream(m_interpreter->getPathStreamID(state),
+                                      concreteBranches);
+              auto f = openTestFile("path", id);
+              if (f) {
+                for (const auto &branch : concreteBranches) {
+                  *f << branch << '\n';
+                }
+              }
+            }
+
+            if (errorMessage || WriteKQueries) {
+              std::string constraints;
+              m_interpreter->getConstraintLogMISE(mutations[i], constraints,Interpreter::MISE);
+              auto f = openTestFile("kquery", id);
+              if (f)
+                *f << constraints;
+            }
+
+            if (WriteCVCs) {
+              // FIXME: If using Z3 as the core solver the emitted file is actually
+              // SMT-LIBv2 not CVC which is a bit confusing
+              std::string constraints;
+              m_interpreter->getConstraintLog(state, constraints, Interpreter::STP);
+              auto f = openTestFile("cvc", id);
+              if (f)
+                *f << constraints;
+            }
+
+            if (WriteSMT2s) {
+              std::string constraints;
+                m_interpreter->getConstraintLog(state, constraints, Interpreter::SMTLIB2);
+                auto f = openTestFile("smt2", id);
+                if (f)
+                  *f << constraints;
+            }
+
+            if (m_symPathWriter) {
+              std::vector<unsigned char> symbolicBranches;
+              m_symPathWriter->readStream(m_interpreter->getSymbolicPathStreamID(state),
+                                          symbolicBranches);
+              auto f = openTestFile("sym.path", id);
+              if (f) {
+                for (const auto &branch : symbolicBranches) {
+                  *f << branch << '\n';
+                }
+              }
+            }
+
+            if (WriteCov) {
+              std::map<const std::string*, std::set<unsigned> > cov;
+              m_interpreter->getCoveredLines(state, cov);
+              auto f = openTestFile("cov", id);
+              if (f) {
+                for (const auto &entry : cov) {
+                  for (const auto &line : entry.second) {
+                    *f << *entry.first << ':' << line << '\n';
+                  }
+                }
+              }
+            }
+
+            if (m_numGeneratedTests == MaxTests)
+              m_interpreter->setHaltExecution(true);
+
+            if (WriteTestInfo) {
+              time::Span elapsed_time(time::getWallTime() - start_time);
+              auto f = openTestFile("info", id);
+              if (f)
+                *f << "Time to generate test case: " << elapsed_time << '\n';
+            }
+      }//end for mutants
+
+
     }
   } // if (!WriteNone)
 

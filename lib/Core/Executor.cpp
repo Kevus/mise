@@ -4811,6 +4811,21 @@ unsigned Executor::getSymbolicPathStreamID(const ExecutionState &state) {
   return state.symPathOS.getID();
 }
 
+//MISE sobrecargar para que permita incluir el ConstraintSet
+void Executor::getConstraintLogMISE(ConstraintSet CS, std::string &res, Interpreter::LogType logFormat) {
+  switch (logFormat) {
+    case MISE: {
+      std::string Str;
+      llvm::raw_string_ostream info(Str);
+      ExprPPrinter::printConstraints(info, CS);
+      res = info.str();
+    } break;
+
+    default: 
+    klee_warning("Executor::getConstraintLogMISE() : Log format not supported!\nTry using Executor::getConstraintLog");
+    }
+}
+
 void Executor::getConstraintLog(const ExecutionState &state, std::string &res,
                                 Interpreter::LogType logFormat) {
 
@@ -4902,7 +4917,8 @@ bool Executor::getSymbolicSolutionMISE(const ExecutionState &state,
                                    std::vector< 
                                    std::pair<std::string,
                                    std::vector<unsigned char> > >
-                                   &mutants) {
+                                   &mutants,
+                                   std::vector<ConstraintSet> &CSmutations) {
   solver->setTimeout(coreSolverTimeout);
 
   ConstraintSet extendedConstraints(state.constraints);
@@ -4947,19 +4963,49 @@ bool Executor::getSymbolicSolutionMISE(const ExecutionState &state,
   for (unsigned i = 0; i != state.symbolics.size(); ++i)
     res.push_back(std::make_pair(state.symbolics[i].first->name, values[i]));
 
-  //MISE: print the values of res on the screen
-  for (unsigned i = 0; i != res.size(); ++i){
-    llvm::errs() << "res[" << i << "]: " << res[i].first << " = ";
-    for (unsigned j = 0; j != res[i].second.size(); ++j){
-      llvm::errs() << (int)res[i].second[j] << " ";
+  //MISE: print the content of extendedConstraints
+  llvm::errs() << "extendedConstraints: ";
+  for (auto it = extendedConstraints.begin(); it != extendedConstraints.end(); ++it){
+    llvm::errs() << *it << " ";
+  }
+  llvm::errs() << "\n";
+
+  //MISE: create mutants
+  Mutator mutator(extendedConstraints);
+  std::vector<ConstraintSet> mutations = mutator.mutate(extendedConstraints);
+
+  //print the content of mutations
+  for (unsigned i = 0; i != mutations.size(); ++i){
+    llvm::errs() << "mutation[" << i << "]: ";
+    for (auto it = mutations[i].begin(); it != mutations[i].end(); ++it){
+      llvm::errs() << *it << " ";
     }
     llvm::errs() << "\n";
   }
 
-  //MISE: create mutants
-  Mutator mutator(extendedConstraints);
-  //std::vector<ConstraintSet> mutations = mutator.mutate(extendedConstraints);
-  //mutator.mutate(extendedConstraints);
+  //do the same as above for each mutation
+  for (unsigned i = 0; i != mutations.size(); ++i){
+    std::vector< std::vector<unsigned char> > values;
+    std::vector<const Array*> objects;
+    for (unsigned i = 0; i != state.symbolics.size(); ++i)
+      objects.push_back(state.symbolics[i].second);
+    bool success = solver->getInitialValues(mutations[i], objects, values,
+                                            state.queryMetaData);
+    solver->setTimeout(time::Span());
+    if (!success) {
+      klee_warning("unable to compute initial values (invalid constraints?)!");
+      ExprPPrinter::printQuery(llvm::errs(), state.constraints,
+                               ConstantExpr::alloc(0, Expr::Bool));
+      //return false;
+    }else {
+      for (unsigned i = 0; i != state.symbolics.size(); ++i)
+        mutants.push_back(std::make_pair(state.symbolics[i].first->name, values[i]));
+
+      CSmutations.push_back(mutations[i]);
+    }
+
+  }
+
   return true;
 }
 
