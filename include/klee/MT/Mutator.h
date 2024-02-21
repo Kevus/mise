@@ -21,8 +21,8 @@ class Mutator {
 
     std::vector<ConstraintSet> mutate(ConstraintSet cs);
 
-    std::vector<ConstraintSet> mutate(ConstraintSet cs, int type);
-    std::vector<ConstraintSet> mutate(int type);
+    //std::vector<ConstraintSet> mutate(ConstraintSet cs, int type);
+    //std::vector<ConstraintSet> mutate(int type);
 
     //std::multimap<std::string, std::vector<ConstraintSet>> mutate(ConstraintSet cs);
     //std::multimap<std::string, std::vector<ConstraintSet>> mutate();

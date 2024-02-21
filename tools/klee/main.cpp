@@ -633,7 +633,7 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
                                   const char *errorSuffix) {
   if (!WriteNone) {
     std::vector< std::pair<std::string, std::vector<unsigned char> > > out;
-    std::vector< std::pair<std::string, std::vector<unsigned char> > > mutants;
+    std::vector< std::vector< std::pair<std::string, std::vector<unsigned char> > > > mutants;
     std::vector<ConstraintSet> mutations;
     bool success = m_interpreter->getSymbolicSolutionMISE(state, out, mutants, mutations);
 
@@ -671,6 +671,7 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
       for (unsigned i=0; i<b.numObjects; i++)
         delete[] b.objects[i].bytes;
       delete[] b.objects;
+    }
 
     if (errorMessage) {
       auto f = openTestFile(errorSuffix, id);
@@ -751,9 +752,10 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
         *f << "Time to generate test case: " << elapsed_time << '\n';
     }
 
-
+  
       //do the same as above with each mutant
       for (unsigned i=0; i<mutants.size(); i++) {
+        std::vector< std::pair<std::string, std::vector<unsigned char> > > mutant = mutants[i];
         KTest m;
         m.numArgs = m_argc;
         m.args = m_argv;
@@ -764,11 +766,11 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
         assert(m.objects);
         for (unsigned j=0; j<m.numObjects; j++) {
           KTestObject *o = &m.objects[j];
-          o->name = const_cast<char*>(mutants[i].first.c_str());
-          o->numBytes = mutants[i].second.size();
+          o->name = const_cast<char*>(mutant[i].first.c_str());
+          o->numBytes = mutant[i].second.size();
           o->bytes = new unsigned char[o->numBytes];
           assert(o->bytes);
-          std::copy(mutants[i].second.begin(), mutants[i].second.end(), o->bytes);
+          std::copy(mutant[i].second.begin(), mutant[i].second.end(), o->bytes);
         }
 
         if (!kTest_toFile(&m, getOutputFilename(getTestFilename("ktest", ++id)).c_str())) {
@@ -777,8 +779,6 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
         } else {
           ++m_numGeneratedTests;
         }
-
-        llvm::errs() << "id: " << id << "\n";
 
         for (unsigned j=0; j<m.numObjects; j++)
           delete[] m.objects[j].bytes;
@@ -804,7 +804,9 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
 
             if (errorMessage || WriteKQueries) {
               std::string constraints;
-              m_interpreter->getConstraintLogMISE(mutations[i], constraints,Interpreter::MISE);
+              //print i and mutations value
+              std::cout << "i: " << i << " mutations: " << mutations.size() << " mutant: " << mutant.size() << std::endl;
+              m_interpreter->getConstraintLogMISE(mutations.at(i), constraints, Interpreter::MISE);
               auto f = openTestFile("kquery", id);
               if (f)
                 *f << constraints;
@@ -864,13 +866,10 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
             }
       }//end for mutants
 
-
+    if (errorMessage && OptExitOnError) {
+      m_interpreter->prepareForEarlyExit();
+      klee_error("EXITING ON ERROR:\n%s\n", errorMessage);
     }
-  } // if (!WriteNone)
-
-  if (errorMessage && OptExitOnError) {
-    m_interpreter->prepareForEarlyExit();
-    klee_error("EXITING ON ERROR:\n%s\n", errorMessage);
   }
 }
 

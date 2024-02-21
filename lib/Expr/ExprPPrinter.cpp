@@ -503,7 +503,7 @@ void ExprPPrinter::printQuery(llvm::raw_ostream &os,
     p.scan(*it);
 
   PrintContext PC(os);
-  
+
   // Print array declarations.
   if (printArrayDecls) {
     for (const Array * const* it = evalArraysBegin; it != evalArraysEnd; ++it)

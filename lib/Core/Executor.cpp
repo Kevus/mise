@@ -4914,98 +4914,80 @@ bool Executor::getSymbolicSolutionMISE(const ExecutionState &state,
                                    std::pair<std::string,
                                    std::vector<unsigned char> > >
                                    &res,
-                                   std::vector< 
+                                   std::vector<std::vector< 
                                    std::pair<std::string,
                                    std::vector<unsigned char> > >
+                                   >
                                    &mutants,
-                                   std::vector<ConstraintSet> &CSmutations) {
-  solver->setTimeout(coreSolverTimeout);
+                                   std::vector<ConstraintSet> &CSmutations)
+{
+  if(getSymbolicSolution(state, res)){
+      //MISE: create mutants
+      std::vector<std::pair<std::string, std::vector<unsigned char>>> mutant;
 
-  ConstraintSet extendedConstraints(state.constraints);
-  ConstraintManager cm(extendedConstraints);
+      ConstraintSet extendedConstraints(state.constraints);
 
-  // Go through each byte in every test case and attempt to restrict
-  // it to the constraints contained in cexPreferences.  (Note:
-  // usually this means trying to make it an ASCII character (0-127)
-  // and therefore human readable. It is also possible to customize
-  // the preferred constraints.  See test/Features/PreferCex.c for
-  // an example) While this process can be very expensive, it can
-  // also make understanding individual test cases much easier.
-  for (auto& pi: state.cexPreferences) {
-    bool mustBeTrue;
-    // Attempt to bound byte to constraints held in cexPreferences
-    bool success =
-      solver->mustBeTrue(extendedConstraints, Expr::createIsZero(pi),
-        mustBeTrue, state.queryMetaData);
-    // If it isn't possible to add the condition without making the entire list
-    // UNSAT, then just continue to the next condition
-    if (!success) break;
-    // If the particular constraint operated on in this iteration through
-    // the loop isn't implied then add it to the list of constraints.
-    if (!mustBeTrue)
-      cm.addConstraint(pi);
+      Mutator mutator(extendedConstraints);
+      std::vector<ConstraintSet> mutations = mutator.mutate(extendedConstraints);
+
+      //print the content of mutations
+      for (unsigned i = 0; i != mutations.size(); ++i){
+        llvm::errs() << "mutation[" << i << "]: ";
+        for (auto it = mutations[i].begin(); it != mutations[i].end(); ++it){
+          llvm::errs() << *it << " ";
+        }
+        llvm::errs() << "\n";
+      }
+
+      //do the same as above for each mutation
+      for (unsigned i = 0; i != mutations.size(); ++i){
+        solver->setTimeout(coreSolverTimeout);
+
+        ConstraintSet extendedConstraints = mutations[i];
+        ConstraintManager cm(extendedConstraints);
+
+        // Go through each byte in every test case and attempt to restrict
+        // it to the constraints contained in cexPreferences.  (Note:
+        // usually this means trying to make it an ASCII character (0-127)
+        // and therefore human readable. It is also possible to customize
+        // the preferred constraints.  See test/Features/PreferCex.c for
+        // an example) While this process can be very expensive, it can
+        // also make understanding individual test cases much easier.
+        for (auto& pi: state.cexPreferences) {
+          bool mustBeTrue;
+          // Attempt to bound byte to constraints held in cexPreferences
+          bool success =
+            solver->mustBeTrue(extendedConstraints, Expr::createIsZero(pi),
+              mustBeTrue, state.queryMetaData);
+          // If it isn't possible to add the condition without making the entire list
+          // UNSAT, then just continue to the next condition
+          if (!success) break;
+          // If the particular constraint operated on in this iteration through
+          // the loop isn't implied then add it to the list of constraints.
+          if (!mustBeTrue)
+            cm.addConstraint(pi);
+        }
+
+        std::vector< std::vector<unsigned char> > values;
+        std::vector<const Array*> objects;
+        for (unsigned i = 0; i != state.symbolics.size(); ++i)
+          objects.push_back(state.symbolics[i].second);
+        bool success = solver->getInitialValues(extendedConstraints, objects, values,
+                                                state.queryMetaData);
+        solver->setTimeout(time::Span());
+        if (!success) {
+          klee_warning("unable to compute initial values with mutants (invalid constraints?)!");
+          ExprPPrinter::printQuery(llvm::errs(), state.constraints,
+                                  ConstantExpr::alloc(0, Expr::Bool));
+        } else {
+          for (unsigned i = 0; i != state.symbolics.size(); ++i)
+            mutant.push_back(std::make_pair(state.symbolics[i].first->name, values[i]));
+
+          mutants.push_back(mutant);
+          CSmutations.push_back(mutations[i]);
+        } 
+      } 
   }
-
-  std::vector< std::vector<unsigned char> > values;
-  std::vector<const Array*> objects;
-  for (unsigned i = 0; i != state.symbolics.size(); ++i)
-    objects.push_back(state.symbolics[i].second);
-  bool success = solver->getInitialValues(extendedConstraints, objects, values,
-                                          state.queryMetaData);
-  solver->setTimeout(time::Span());
-  if (!success) {
-    klee_warning("unable to compute initial values (invalid constraints?)!");
-    ExprPPrinter::printQuery(llvm::errs(), state.constraints,
-                             ConstantExpr::alloc(0, Expr::Bool));
-    return false;
-  }
-  
-  for (unsigned i = 0; i != state.symbolics.size(); ++i)
-    res.push_back(std::make_pair(state.symbolics[i].first->name, values[i]));
-
-  //MISE: print the content of extendedConstraints
-  llvm::errs() << "extendedConstraints: ";
-  for (auto it = extendedConstraints.begin(); it != extendedConstraints.end(); ++it){
-    llvm::errs() << *it << " ";
-  }
-  llvm::errs() << "\n";
-
-  //MISE: create mutants
-  Mutator mutator(extendedConstraints);
-  std::vector<ConstraintSet> mutations = mutator.mutate(extendedConstraints);
-
-  //print the content of mutations
-  for (unsigned i = 0; i != mutations.size(); ++i){
-    llvm::errs() << "mutation[" << i << "]: ";
-    for (auto it = mutations[i].begin(); it != mutations[i].end(); ++it){
-      llvm::errs() << *it << " ";
-    }
-    llvm::errs() << "\n";
-  }
-
-  //do the same as above for each mutation
-  for (unsigned i = 0; i != mutations.size(); ++i){
-    std::vector< std::vector<unsigned char> > values;
-    std::vector<const Array*> objects;
-    for (unsigned i = 0; i != state.symbolics.size(); ++i)
-      objects.push_back(state.symbolics[i].second);
-    bool success = solver->getInitialValues(mutations[i], objects, values,
-                                            state.queryMetaData);
-    solver->setTimeout(time::Span());
-    if (!success) {
-      klee_warning("unable to compute initial values (invalid constraints?)!");
-      ExprPPrinter::printQuery(llvm::errs(), state.constraints,
-                               ConstantExpr::alloc(0, Expr::Bool));
-      //return false;
-    }else {
-      for (unsigned i = 0; i != state.symbolics.size(); ++i)
-        mutants.push_back(std::make_pair(state.symbolics[i].first->name, values[i]));
-
-      CSmutations.push_back(mutations[i]);
-    }
-
-  }
-
   return true;
 }
 

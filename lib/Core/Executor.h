@@ -577,7 +577,7 @@ public:
   bool getSymbolicSolutionMISE(
       const ExecutionState &state,
       std::vector<std::pair<std::string, std::vector<unsigned char>>> &res,
-      std::vector<std::pair<std::string, std::vector<unsigned char>>> &resMutants,
+      std::vector<std::vector<std::pair<std::string, std::vector<unsigned char>>>> &resMutants,
       std::vector<ConstraintSet> &mutations)
       override;
 

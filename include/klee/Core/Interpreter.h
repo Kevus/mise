@@ -176,7 +176,7 @@ public:
   virtual bool getSymbolicSolutionMISE(
       const ExecutionState &state,
       std::vector<std::pair<std::string, std::vector<unsigned char>>> &res,
-      std::vector<std::pair<std::string, std::vector<unsigned char>>> &resMutants,
+      std::vector< std::vector<std::pair<std::string, std::vector<unsigned char>> > > &resMutants,
       std::vector<ConstraintSet> &mutations) = 0;
 
   virtual void getCoveredLines(const ExecutionState &state,

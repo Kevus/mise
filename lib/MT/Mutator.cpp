@@ -15,11 +15,28 @@ void Mutator::printOriginalConstraints() {
 }
 
 std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs) {
-  std::vector<ConstraintSet> res = apply_ROR(cs);
+  std::vector<ConstraintSet> res;// = apply_ROR(cs);
+  std::vector<ConstraintSet> aux;
+
+  //ROR operator
+  aux = apply_ROR(cs);
+  res.insert(res.end(), aux.begin(), aux.end());
+  klee_message("MISE: Generated %ld ROR mutants.", aux.size());
+
+  //ARB operator
+  aux = apply_ARB(cs);
+  res.insert(res.end(), aux.begin(), aux.end());
+  klee_message("MISE: Generated %ld ARB mutants.", aux.size());
+
+  //COR operator
+  aux = apply_COR(cs);
+  res.insert(res.end(), aux.begin(), aux.end());
+  klee_message("MISE: Generated %ld COR mutants.", aux.size());
+
   return res;
 }
 
-std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs, int type) {
+/*std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs, int type) {
   std::vector<ConstraintSet> res;
   std::vector<ConstraintSet> aux;
 
@@ -80,7 +97,7 @@ std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs, int type) {
 
 std::vector<ConstraintSet> Mutator::mutate(int type) {
   return mutate(originalConstraints, type);
-}
+}*/
 
 /*std::multimap<std::string, std::vector<ConstraintSet>> Mutator::mutate(ConstraintSet cs) {
   std::multimap<std::string, std::vector<ConstraintSet>> result;
