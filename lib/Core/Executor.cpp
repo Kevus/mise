@@ -4814,10 +4814,26 @@ unsigned Executor::getSymbolicPathStreamID(const ExecutionState &state) {
 //MISE sobrecargar para que permita incluir el ConstraintSet
 void Executor::getConstraintLogMISE(ConstraintSet CS, std::string &res, Interpreter::LogType logFormat) {
   switch (logFormat) {
-    case MISE: {
+    case STP: {
+      Query query(CS, ConstantExpr::alloc(0, Expr::Bool));
+      res = solver->getConstraintLog(query);
+    }
+
+    case KQUERY: {
       std::string Str;
       llvm::raw_string_ostream info(Str);
       ExprPPrinter::printConstraints(info, CS);
+      res = info.str();
+    } break;
+
+    case SMTLIB2: {
+      std::string Str;
+      llvm::raw_string_ostream info(Str);
+      ExprSMTLIBPrinter printer;
+      printer.setOutput(info);
+      Query query(CS, ConstantExpr::alloc(0, Expr::Bool));
+      printer.setQuery(query);
+      printer.generateOutput();
       res = info.str();
     } break;
 
@@ -4931,39 +4947,29 @@ bool Executor::getSymbolicSolutionMISE(const ExecutionState &state,
       std::vector<ConstraintSet> mutations = mutator.mutate(extendedConstraints);
 
       //print the content of mutations
-      for (unsigned i = 0; i != mutations.size(); ++i){
-        llvm::errs() << "mutation[" << i << "]: ";
-        for (auto it = mutations[i].begin(); it != mutations[i].end(); ++it){
-          llvm::errs() << *it << " ";
-        }
-        llvm::errs() << "\n";
-      }
+      //for (unsigned i = 0; i != mutations.size(); ++i){
+      //  llvm::errs() << "mutation[" << i << "]: ";
+      //  for (auto it = mutations[i].begin(); it != mutations[i].end(); ++it){
+      //    llvm::errs() << *it << " ";
+      //  }
+      //  llvm::errs() << "\n";
+      //}
 
       //do the same as above for each mutation
       for (unsigned i = 0; i != mutations.size(); ++i){
         solver->setTimeout(coreSolverTimeout);
 
-        ConstraintSet extendedConstraints = mutations[i];
+        extendedConstraints = mutations[i];
         ConstraintManager cm(extendedConstraints);
 
-        // Go through each byte in every test case and attempt to restrict
-        // it to the constraints contained in cexPreferences.  (Note:
-        // usually this means trying to make it an ASCII character (0-127)
-        // and therefore human readable. It is also possible to customize
-        // the preferred constraints.  See test/Features/PreferCex.c for
-        // an example) While this process can be very expensive, it can
-        // also make understanding individual test cases much easier.
         for (auto& pi: state.cexPreferences) {
           bool mustBeTrue;
-          // Attempt to bound byte to constraints held in cexPreferences
           bool success =
             solver->mustBeTrue(extendedConstraints, Expr::createIsZero(pi),
               mustBeTrue, state.queryMetaData);
-          // If it isn't possible to add the condition without making the entire list
-          // UNSAT, then just continue to the next condition
+
           if (!success) break;
-          // If the particular constraint operated on in this iteration through
-          // the loop isn't implied then add it to the list of constraints.
+
           if (!mustBeTrue)
             cm.addConstraint(pi);
         }

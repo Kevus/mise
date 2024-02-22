@@ -21,17 +21,17 @@ std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs) {
   //ROR operator
   aux = apply_ROR(cs);
   res.insert(res.end(), aux.begin(), aux.end());
-  klee_message("MISE: Generated %ld ROR mutants.", aux.size());
+  //klee_message("MISE: Generated %ld ROR mutants.", aux.size());
 
-  //ARB operator
+  //ARB operator (covers ARU and ARS)
   aux = apply_ARB(cs);
   res.insert(res.end(), aux.begin(), aux.end());
-  klee_message("MISE: Generated %ld ARB mutants.", aux.size());
+  //klee_message("MISE: Generated %ld ARB mutants.", aux.size());
 
-  //COR operator
+  //COR operator (Covers LOR)
   aux = apply_COR(cs);
   res.insert(res.end(), aux.begin(), aux.end());
-  klee_message("MISE: Generated %ld COR mutants.", aux.size());
+  //klee_message("MISE: Generated %ld COR mutants.", aux.size());
 
   return res;
 }

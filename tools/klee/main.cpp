@@ -790,23 +790,9 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
                 *f << errorMessage;
            }
 
-            if (m_pathWriter) {
-              std::vector<unsigned char> concreteBranches;
-              m_pathWriter->readStream(m_interpreter->getPathStreamID(state),
-                                      concreteBranches);
-              auto f = openTestFile("path", id);
-              if (f) {
-                for (const auto &branch : concreteBranches) {
-                  *f << branch << '\n';
-                }
-              }
-            }
-
             if (errorMessage || WriteKQueries) {
               std::string constraints;
-              //print i and mutations value
-              std::cout << "i: " << i << " mutations: " << mutations.size() << " mutant: " << mutant.size() << std::endl;
-              m_interpreter->getConstraintLogMISE(mutations.at(i), constraints, Interpreter::MISE);
+              m_interpreter->getConstraintLogMISE(mutations.at(i), constraints, Interpreter::KQUERY);
               auto f = openTestFile("kquery", id);
               if (f)
                 *f << constraints;
@@ -816,7 +802,7 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
               // FIXME: If using Z3 as the core solver the emitted file is actually
               // SMT-LIBv2 not CVC which is a bit confusing
               std::string constraints;
-              m_interpreter->getConstraintLog(state, constraints, Interpreter::STP);
+              m_interpreter->getConstraintLogMISE(mutations.at(i), constraints, Interpreter::STP);
               auto f = openTestFile("cvc", id);
               if (f)
                 *f << constraints;
@@ -824,35 +810,10 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
 
             if (WriteSMT2s) {
               std::string constraints;
-                m_interpreter->getConstraintLog(state, constraints, Interpreter::SMTLIB2);
+                m_interpreter->getConstraintLogMISE(mutations.at(i), constraints, Interpreter::SMTLIB2);
                 auto f = openTestFile("smt2", id);
                 if (f)
                   *f << constraints;
-            }
-
-            if (m_symPathWriter) {
-              std::vector<unsigned char> symbolicBranches;
-              m_symPathWriter->readStream(m_interpreter->getSymbolicPathStreamID(state),
-                                          symbolicBranches);
-              auto f = openTestFile("sym.path", id);
-              if (f) {
-                for (const auto &branch : symbolicBranches) {
-                  *f << branch << '\n';
-                }
-              }
-            }
-
-            if (WriteCov) {
-              std::map<const std::string*, std::set<unsigned> > cov;
-              m_interpreter->getCoveredLines(state, cov);
-              auto f = openTestFile("cov", id);
-              if (f) {
-                for (const auto &entry : cov) {
-                  for (const auto &line : entry.second) {
-                    *f << *entry.first << ':' << line << '\n';
-                  }
-                }
-              }
             }
 
             if (m_numGeneratedTests == MaxTests)

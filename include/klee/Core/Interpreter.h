@@ -80,7 +80,6 @@ public:
 	  STP, //.CVC (STP's native language)
 	  KQUERY, //.KQUERY files (kQuery native language)
 	  SMTLIB2, //.SMT2 files (SMTLIB version 2 files)
-    MISE //MISE: Mutated .KQUERY files
   };
 
   /// InterpreterOptions - Options varying the runtime behavior during

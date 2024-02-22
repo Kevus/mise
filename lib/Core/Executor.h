@@ -566,7 +566,7 @@ public:
 
   //MISE. Overloaded to support mutants.
   void getConstraintLogMISE(ConstraintSet CS, std::string &res, 
-                      Interpreter::LogType logFormat = Interpreter::MISE) override;
+                      Interpreter::LogType logFormat = Interpreter::STP) override;
 
   bool getSymbolicSolution(
       const ExecutionState &state,
