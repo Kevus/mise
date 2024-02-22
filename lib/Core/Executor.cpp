@@ -4817,7 +4817,7 @@ void Executor::getConstraintLogMISE(ConstraintSet CS, std::string &res, Interpre
     case STP: {
       Query query(CS, ConstantExpr::alloc(0, Expr::Bool));
       res = solver->getConstraintLog(query);
-    }
+    } break;
 
     case KQUERY: {
       std::string Str;
@@ -4945,6 +4945,13 @@ bool Executor::getSymbolicSolutionMISE(const ExecutionState &state,
 
       Mutator mutator(extendedConstraints);
       std::vector<ConstraintSet> mutations = mutator.mutate(extendedConstraints);
+
+      //print the extendedConstraints labeled as original
+      //llvm::errs() << "original: ";
+      //for (auto it = extendedConstraints.begin(); it != extendedConstraints.end(); ++it){
+      //  llvm::errs() << *it << " ";
+      //}
+      //llvm::errs() << "\n";
 
       //print the content of mutations
       //for (unsigned i = 0; i != mutations.size(); ++i){

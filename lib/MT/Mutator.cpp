@@ -18,20 +18,31 @@ std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs) {
   std::vector<ConstraintSet> res;// = apply_ROR(cs);
   std::vector<ConstraintSet> aux;
 
+  //MISE: Replacement operators
+
   //ROR operator
   aux = apply_ROR(cs);
   res.insert(res.end(), aux.begin(), aux.end());
-  //klee_message("MISE: Generated %ld ROR mutants.", aux.size());
+  klee_message("MISE: Generated %ld ROR mutants.", aux.size());
 
   //ARB operator (covers ARU and ARS)
   aux = apply_ARB(cs);
   res.insert(res.end(), aux.begin(), aux.end());
-  //klee_message("MISE: Generated %ld ARB mutants.", aux.size());
+  klee_message("MISE: Generated %ld ARB mutants.", aux.size());
 
   //COR operator (Covers LOR)
   aux = apply_COR(cs);
   res.insert(res.end(), aux.begin(), aux.end());
-  //klee_message("MISE: Generated %ld COR mutants.", aux.size());
+  klee_message("MISE: Generated %ld COR mutants.", aux.size());
+
+  //MISE: Insertion operators
+  //AIS operator
+  aux = apply_AIS(cs, "Add");
+  res.insert(res.end(), aux.begin(), aux.end());
+  aux = apply_AIS(cs, "Sub");
+  res.insert(res.end(), aux.begin(), aux.end());
+  klee_message("MISE: Generated %ld AIS mutants.", aux.size()*2);
+  
 
   return res;
 }
@@ -281,7 +292,6 @@ std::vector<ConstraintSet> Mutator::applyMutations(std::string oldOp, std::strin
 
     if(currentOp == oldOp) { //base case, found mutation
       if(currentLevel == objectiveLevel) {
-        //Añadido para el tema de los asertos...
         if(e->getKid(0)->printWidthtoString() == e->getKid(1)->printWidthtoString()) {
           //std::cout << "OldOP: " << oldOp << " NewOp: " << newOp << std::endl;
           return build(e->getKid(0), e->getKid(1), newOp);
@@ -305,36 +315,43 @@ std::vector<ConstraintSet> Mutator::applyMutations(std::string oldOp, std::strin
   ref<Expr> Mutator::mutate_AIS(ref<Expr> e, int currentLevel, int objectiveLevel, std::string op) {
       ref<Expr> left = e->getKid(0), right = e->getKid(1), intValue;
       std::string currentOp = e->printKindtoString();
+      std::string Constant = "Constant";
+
+
 
       if(e->getNumKids() == 2) {
         if( is_number(left->printValuetoString()) || is_number(right->printValuetoString()) ) { //This means it is an arithmetic op.
           if( currentLevel == objectiveLevel ) {
 
+            //print left and right values, types and width
+            //std::cout << "Left: " << left->printValuetoString() << " -- Right: " << right->printValuetoString() << std::endl;
+            //std::cout << "LeftType: " << left->printKindtoString() << " -- RightType: " << right->printKindtoString() << std::endl;
+            //std::cout << "LeftWidth: " << left->printWidthtoString() << " -- RightWidth: " << right->printWidthtoString() << std::endl;
+
             ExprBuilder *Builder = 0;
             Builder = createDefaultExprBuilder(); //this will build the value
-            intValue = Builder->Constant((uint64_t)(1), Expr::Int32);
+            //intValue = Builder->Constant((uint64_t)(1), Expr::Int32);
 
-            if(is_number(left->printValuetoString()) &&
-               right->printKindtoString() == "Constant") {
+            if(is_number(left->printValuetoString()) && right->printKindtoString() == Constant) {
+              //In this case, apply operator to the left side
+              //(Slt (ReadLSB w32 0 a) 1)) -> (Slt (Add (ReadLSB w32 0 a) 1) 1)
+              intValue = Builder->Constant((uint64_t)(1), e->getKid(1)->getWidth());
+              return build(e->getKid(0), build(e->getKid(1), intValue, op), currentOp);
 
-              if(!(intValue->getWidth()==right->getWidth() && "type mismatch")) {
-                  return build(left, right, currentOp);
-              } else return build(e->getKid(0), build(e->getKid(1), intValue, op), currentOp);
-            } else if (is_number(right->printValuetoString()) &&
-              left->printKindtoString() == "Constant"){
-              if(!(intValue->getWidth()==right->getWidth() && "type mismatch")) {
-                  return build(left, right, currentOp);
-              } else return build(build(e->getKid(0), intValue, op), e->getKid(1), currentOp);
+              //if(!(intValue->getWidth()==right->getWidth() && "type mismatch"))
+            } else if(left->printKindtoString() == Constant) {//if (is_number(right->printValuetoString()) &&
+              //In this case, apply operator to the right side
+              intValue = Builder->Constant((uint64_t)(1), e->getKid(0)->getWidth());
+              return build(build(e->getKid(0), intValue, op), e->getKid(1), currentOp);
             }
           } else currentLevel++;
         }
         left = mutate_AIS(left, currentLevel, objectiveLevel, op);
         right = mutate_AIS(right, currentLevel, objectiveLevel, op);
 
-        if(!(left->getWidth()==right->getWidth() && "type mismatch"))
-          return build(e->getKid(0), e->getKid(1), currentOp);
-        else return build(left, right, currentOp);
-            } else if (e->getNumKids() == 1 && !excludedOperators(e)) {
+        return build(left, right, currentOp);
+        
+        } else if (e->getNumKids() == 1 && !excludedOperators(e)) {
         return mutate_AIS(e->getKid(0), currentLevel, objectiveLevel, op);
       } else return e;
 
