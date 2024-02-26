@@ -87,6 +87,8 @@ std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs) {
       klee_warning("MISE: Operator %s not supported.", op.c_str());
     }
   }
+
+  klee_message("MISE: Total mutants generated: %ld", res.size());
     
   return res;
 }

@@ -760,7 +760,7 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
         *f << "Time to generate test case: " << elapsed_time << '\n';
     }
 
-  
+    if (success) {
       //do the same as above with each mutant
       for (unsigned i=0; i<mutants.size(); i++) {
         std::vector< std::pair<std::string, std::vector<unsigned char> > > mutant = mutants[i];
@@ -786,6 +786,7 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
           --id;
         } else {
           ++m_numGeneratedTests;
+          ++m_numTotalTests;
         }
 
         for (unsigned j=0; j<m.numObjects; j++)
@@ -834,6 +835,7 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
                 *f << "Time to generate test case: " << elapsed_time << '\n';
             }
       }//end for mutants
+    }
 
     if (errorMessage && OptExitOnError) {
       m_interpreter->prepareForEarlyExit();
