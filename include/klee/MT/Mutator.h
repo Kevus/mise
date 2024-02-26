@@ -16,7 +16,7 @@ class Mutator {
     Mutator() {}
 
     //Constructor that receive a list of mutation operators
-    Mutator(std::vector<std::string> operators) : mutationOperators(operators){}
+    Mutator(std::string operators);
 
     std::vector<ConstraintSet> mutate(ConstraintSet cs);
 

@@ -5,10 +5,26 @@
 #include "klee/Support/ErrorHandling.h"
 
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <string>
 
 using namespace klee;
+
+Mutator::Mutator(std::string operators) {
+  //Try to open the file included in the operators string
+  std::ifstream file(operators);
+  std::string line;
+  if(file.is_open()) {
+    while(getline(file, line)) {
+      mutationOperators.push_back(line);
+    }
+    file.close();
+  } else {
+    klee_warning("MISE: Could not open file with mutation operators. Using default operators.");
+    mutationOperators = {"ROR", "ARB", "ARS", "AIU", "AIS", "COR", "COI"};
+  }
+}
 
 //Function that return the current timestamp as a string
 std::string currentDateTime() {
@@ -28,44 +44,50 @@ std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs) {
   std::vector<ConstraintSet> res;// = apply_ROR(cs);
   std::vector<ConstraintSet> aux;
 
-  
-  //MISE: Replacement operators
-  //ROR operator
-  aux = apply_ROR(cs);
-  res.insert(res.end(), aux.begin(), aux.end());
-  klee_message("MISE: Generated %ld ROR mutants at %s.", aux.size(), currentDateTime().c_str());
+  //Apply only the operators from mutationOperators
+  for(auto &op : mutationOperators) {
+    if(op == "ROR") {
+      aux = apply_ROR(cs);
+      res.insert(res.end(), aux.begin(), aux.end());
+      klee_message("MISE: Generated %ld ROR mutants at %s.", aux.size(), currentDateTime().c_str());
 
-  //ARB operator (covers ARU and ARS)
-  aux = apply_ARB(cs);
-  res.insert(res.end(), aux.begin(), aux.end());
-  klee_message("MISE: Generated %ld ARB mutants at %s.", aux.size(), currentDateTime().c_str());
+    } else if(op == "ARB") {
+      aux = apply_ARB(cs);
+      res.insert(res.end(), aux.begin(), aux.end());
+      klee_message("MISE: Generated %ld ARB mutants at %s.", aux.size(), currentDateTime().c_str());
 
-  //COR operator (Covers LOR)
-  aux = apply_COR(cs);
-  res.insert(res.end(), aux.begin(), aux.end());
-  klee_message("MISE: Generated %ld COR mutants at %s.", aux.size(), currentDateTime().c_str());
+    } else if(op == "ARS") {
+      aux = apply_ARB(cs);
+      res.insert(res.end(), aux.begin(), aux.end());
+      klee_message("MISE: Generated %ld ARS mutants at %s.", aux.size(), currentDateTime().c_str());
 
-  //--------------------------------------------------------------------------------
+    } else if(op == "AIU") {
+      aux = apply_AIU(cs);
+      res.insert(res.end(), aux.begin(), aux.end());
+      klee_message("MISE: Generated %ld AIU mutants at %s.", aux.size(), currentDateTime().c_str());
 
-  //MISE: Insertion operators
-  //AIS operator
-  aux = apply_AIS(cs, "Add");
-  res.insert(res.end(), aux.begin(), aux.end());
-  aux = apply_AIS(cs, "Sub");
-  res.insert(res.end(), aux.begin(), aux.end());
-  klee_message("MISE: Generated %ld AIS mutants at %s.", aux.size()*2, currentDateTime().c_str());
+    } else if(op == "AIS") {
+      aux = apply_AIS(cs, "Add");
+      res.insert(res.end(), aux.begin(), aux.end());
+      aux = apply_AIS(cs, "Sub");
+      res.insert(res.end(), aux.begin(), aux.end());
+      klee_message("MISE: Generated %ld AIS mutants at %s.", aux.size()*2, currentDateTime().c_str());
 
-  //AIU operator
-  aux = apply_AIU(cs);
-  res.insert(res.end(), aux.begin(), aux.end());
-  klee_message("MISE: Generated %ld AIU mutants at %s.", aux.size(), currentDateTime().c_str());
+    } else if(op == "COR") {
+      aux = apply_COR(cs);
+      res.insert(res.end(), aux.begin(), aux.end());
+      klee_message("MISE: Generated %ld COR mutants at %s.", aux.size(), currentDateTime().c_str());
 
-  //MISE: this operator is from the previous version, but it should work
-  //TO-DO: more testing
-  aux = apply_COI(cs);
-  res.insert(res.end(), aux.begin(), aux.end());
-  klee_message("MISE: Generated %ld COI mutants at %s.", aux.size(), currentDateTime().c_str());
-  
+    } else if(op == "COI") {
+      aux = apply_COI(cs);
+      res.insert(res.end(), aux.begin(), aux.end());
+      klee_message("MISE: Generated %ld COI mutants at %s.", aux.size(), currentDateTime().c_str());
+
+    } else {
+      klee_warning("MISE: Operator %s not supported.", op.c_str());
+    }
+  }
+    
   return res;
 }
 

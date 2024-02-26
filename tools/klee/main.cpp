@@ -91,6 +91,13 @@ namespace {
   cl::OptionCategory TestCaseCat("Test case options",
                                  "These options select the files to generate for each test case.");
 
+  //New option to include a .txt file with a list of mutation operators
+  cl::opt<std::string>
+  MutationsFile("mutations-file",
+                cl::desc("File with a list of mutation operators to be used"),
+                cl::init(""),
+                cl::cat(TestCaseCat));
+
   cl::opt<bool>
   WriteNone("write-no-tests",
             cl::init(false),
@@ -635,7 +642,8 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
     std::vector< std::pair<std::string, std::vector<unsigned char> > > out;
     std::vector< std::vector< std::pair<std::string, std::vector<unsigned char> > > > mutants;
     std::vector<ConstraintSet> mutations;
-    bool success = m_interpreter->getSymbolicSolutionMISE(state, out, mutants, mutations);
+
+    bool success = m_interpreter->getSymbolicSolutionMISE(state, out, mutants, mutations, MutationsFile.c_str());
 
     if (!success)
       klee_warning("unable to get symbolic solution, losing test case");

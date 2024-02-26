@@ -4935,7 +4935,8 @@ bool Executor::getSymbolicSolutionMISE(const ExecutionState &state,
                                    std::vector<unsigned char> > >
                                    >
                                    &mutants,
-                                   std::vector<ConstraintSet> &CSmutations)
+                                   std::vector<ConstraintSet> &CSmutations,
+                                   std::string mutationOperators)
 {
   if(getSymbolicSolution(state, res)){
       //MISE: create mutants
@@ -4943,7 +4944,7 @@ bool Executor::getSymbolicSolutionMISE(const ExecutionState &state,
 
       ConstraintSet extendedConstraints(state.constraints);
 
-      Mutator mutator;
+      Mutator mutator(mutationOperators);
       std::vector<ConstraintSet> mutations = mutator.mutate(extendedConstraints);
 
       //print the extendedConstraints labeled as original

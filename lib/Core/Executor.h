@@ -578,7 +578,8 @@ public:
       const ExecutionState &state,
       std::vector<std::pair<std::string, std::vector<unsigned char>>> &res,
       std::vector<std::vector<std::pair<std::string, std::vector<unsigned char>>>> &resMutants,
-      std::vector<ConstraintSet> &mutations)
+      std::vector<ConstraintSet> &mutations,
+      std::string mutationOperators)
       override;
 
   void getCoveredLines(const ExecutionState &state,
