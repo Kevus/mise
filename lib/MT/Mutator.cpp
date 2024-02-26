@@ -30,7 +30,6 @@ std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs) {
 
   
   //MISE: Replacement operators
-
   //ROR operator
   aux = apply_ROR(cs);
   res.insert(res.end(), aux.begin(), aux.end());
@@ -45,6 +44,8 @@ std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs) {
   aux = apply_COR(cs);
   res.insert(res.end(), aux.begin(), aux.end());
   klee_message("MISE: Generated %ld COR mutants at %s.", aux.size(), currentDateTime().c_str());
+
+  //--------------------------------------------------------------------------------
 
   //MISE: Insertion operators
   //AIS operator
@@ -93,10 +94,6 @@ std::vector<ConstraintSet> Mutator::applyMutations(ConstraintSet cs, std::string
   return res;
 }
 
-std::vector<ConstraintSet> Mutator::applyMutations(std::string oldOp, std::string newOp) {
-  return applyMutations(originalConstraints, oldOp, newOp);
-}
-
   int Mutator::countMutations(std::string op, ConstraintSet cs) {
     int i = 0;
     for(auto& constraint : cs) {
@@ -121,19 +118,7 @@ std::vector<ConstraintSet> Mutator::applyMutations(std::string oldOp, std::strin
     return i;
   }
 
-  int Mutator::countMutations(std::string op) {
-    return countMutations(op, originalConstraints);
-  }
 
-  int Mutator::countMutations_AIS() {
-    return countMutations_AIS(originalConstraints);
-  }
-
-  int Mutator::countMutations_AIU() {
-    return countMutations_AIU(originalConstraints);
-  }
-
-  //kevin: private auxiliar method
   int Mutator::countMutations(std::string op, ref<Expr> e) {
     if(e->getNumKids() == 0 && e->printKindtoString() == "Constant" && op == "Constant" && is_number(e->printValuetoString())){
       return 1;
@@ -496,3 +481,8 @@ std::vector<ConstraintSet> Mutator::applyMutations(std::string oldOp, std::strin
     
     return res;
   }
+
+  bool Mutator::is_number(const std::string& s) {
+        return !s.empty() && std::find_if(s.begin(),
+            s.end(), [](unsigned char c) { return !std::isdigit(c); }) == s.end();
+    }

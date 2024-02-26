@@ -4943,7 +4943,7 @@ bool Executor::getSymbolicSolutionMISE(const ExecutionState &state,
 
       ConstraintSet extendedConstraints(state.constraints);
 
-      Mutator mutator(extendedConstraints);
+      Mutator mutator;
       std::vector<ConstraintSet> mutations = mutator.mutate(extendedConstraints);
 
       //print the extendedConstraints labeled as original
