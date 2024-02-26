@@ -10,6 +10,16 @@
 
 using namespace klee;
 
+//Function that return the current timestamp as a string
+std::string currentDateTime() {
+  time_t now = time(0);
+  struct tm tstruct;
+  char buf[80];
+  tstruct = *localtime(&now);
+  strftime(buf, sizeof(buf), "%d-%m-%Y.%X", &tstruct);
+  return buf;
+}
+
 void Mutator::printOriginalConstraints() {
   originalConstraints.printConstraints();
 }
@@ -18,22 +28,23 @@ std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs) {
   std::vector<ConstraintSet> res;// = apply_ROR(cs);
   std::vector<ConstraintSet> aux;
 
+  
   //MISE: Replacement operators
 
   //ROR operator
   aux = apply_ROR(cs);
   res.insert(res.end(), aux.begin(), aux.end());
-  klee_message("MISE: Generated %ld ROR mutants.", aux.size());
+  klee_message("MISE: Generated %ld ROR mutants at %s.", aux.size(), currentDateTime().c_str());
 
   //ARB operator (covers ARU and ARS)
   aux = apply_ARB(cs);
   res.insert(res.end(), aux.begin(), aux.end());
-  klee_message("MISE: Generated %ld ARB mutants.", aux.size());
+  klee_message("MISE: Generated %ld ARB mutants at %s.", aux.size(), currentDateTime().c_str());
 
   //COR operator (Covers LOR)
   aux = apply_COR(cs);
   res.insert(res.end(), aux.begin(), aux.end());
-  klee_message("MISE: Generated %ld COR mutants.", aux.size());
+  klee_message("MISE: Generated %ld COR mutants at %s.", aux.size(), currentDateTime().c_str());
 
   //MISE: Insertion operators
   //AIS operator
@@ -41,93 +52,21 @@ std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs) {
   res.insert(res.end(), aux.begin(), aux.end());
   aux = apply_AIS(cs, "Sub");
   res.insert(res.end(), aux.begin(), aux.end());
-  klee_message("MISE: Generated %ld AIS mutants.", aux.size()*2);
+  klee_message("MISE: Generated %ld AIS mutants at %s.", aux.size()*2, currentDateTime().c_str());
+
+  //AIU operator
+  aux = apply_AIU(cs);
+  res.insert(res.end(), aux.begin(), aux.end());
+  klee_message("MISE: Generated %ld AIU mutants at %s.", aux.size(), currentDateTime().c_str());
+
+  //MISE: this operator is from the previous version, but it should work
+  //TO-DO: more testing
+  aux = apply_COI(cs);
+  res.insert(res.end(), aux.begin(), aux.end());
+  klee_message("MISE: Generated %ld COI mutants at %s.", aux.size(), currentDateTime().c_str());
   
-
   return res;
 }
-
-/*std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs, int type) {
-  std::vector<ConstraintSet> res;
-  std::vector<ConstraintSet> aux;
-
-  //Original constraint
-  //res.push_back(cs);
-
-  switch(type) {
-    case 1: //1 is ROR
-      aux = apply_ROR(cs);
-      res.insert(res.end(), aux.begin(), aux.end());
-
-      std::cout << "Generated " << aux.size() << " ROR mutants.\n";
-      break;
-
-    case 2: //2 is ARB
-      aux = apply_ARB(cs);
-      res.insert(res.end(), aux.begin(), aux.end());
-
-      std::cout << "Generated " << aux.size() << " ARB mutants.\n";
-      break;
-
-    case 3: //3 is AIS
-      aux = apply_AIS(cs, "Add");
-      res.insert(res.end(), aux.begin(), aux.end());
-
-      aux = apply_AIS(cs, "Sub");
-      res.insert(res.end(), aux.begin(), aux.end());
-
-      std::cout << "Generated " << aux.size()*2 << " AIS mutants.\n";
-      break;
-
-    case 4: //4 is AIU
-      aux = apply_AIU(cs);
-      res.insert(res.end(), aux.begin(), aux.end());
-
-      std::cout << "Generated " << aux.size() << " AIU mutants.\n";
-      break;
-
-    case 5: //5 is COI
-      aux = apply_COI(cs);
-      res.insert(res.end(), aux.begin(), aux.end());
-
-      std::cout << "Generated " << aux.size() << " COI mutants.\n";
-      break;
-
-    case 6: //6 is COR
-      aux = apply_COR(cs);
-      res.insert(res.end(), aux.begin(), aux.end());
-
-      std::cout << "Generated " << aux.size() << " COR mutants.\n";
-      break;
-
-    default: std::cout << "ERROR: bad mutant type";
-  }
-
-  return res;
-}
-
-std::vector<ConstraintSet> Mutator::mutate(int type) {
-  return mutate(originalConstraints, type);
-}*/
-
-/*std::multimap<std::string, std::vector<ConstraintSet>> Mutator::mutate(ConstraintSet cs) {
-  std::multimap<std::string, std::vector<ConstraintSet>> result;
-  std::vector<ConstraintSet> aux;
-
-    aux.push_back(cs);
-    result.insert(std::pair<std::string, std::vector<ConstraintSet>>("", aux));
-    result.insert(std::pair<std::string, std::vector<ConstraintSet>>(".ROR", mutate(cs, 1)));
-    result.insert(std::pair<std::string, std::vector<ConstraintSet>>(".ARB", mutate(cs, 2)));
-    result.insert(std::pair<std::string, std::vector<ConstraintSet>>(".AIS", mutate(cs, 3)));
-    result.insert(std::pair<std::string, std::vector<ConstraintSet>>(".AIU", mutate(cs, 4)));
-    result.insert(std::pair<std::string, std::vector<ConstraintSet>>(".COI", mutate(cs, 5)));
-    result.insert(std::pair<std::string, std::vector<ConstraintSet>>(".COR", mutate(cs, 6)));
-  return result;
-}
-
-std::multimap<std::string, std::vector<ConstraintSet>> Mutator::mutate() {
-  return mutate(originalConstraints);
-}*/
 
 std::vector<ConstraintSet> Mutator::applyMutations(ConstraintSet cs, std::string oldOp, std::string newOp) {
 
@@ -228,7 +167,7 @@ std::vector<ConstraintSet> Mutator::applyMutations(std::string oldOp, std::strin
       std::string rightType = e->getKid(0)->printKindtoString();
 
       if( ((is_number(left) && left != "0") && leftType == "Constant")
-       || ((is_number(right) && right != "0") && rightType == "Constant") ) { //This means it is an arithmetic op and its not 0.
+       || ((is_number(right) && right != "0") && rightType == "Constant") ) {
         return 1;
       } else {
         return countMutations_AIU(e->getKid(0)) + countMutations_AIU(e->getKid(1));
@@ -288,12 +227,9 @@ std::vector<ConstraintSet> Mutator::applyMutations(std::string oldOp, std::strin
   ref<Expr> Mutator::mutate(ref<Expr> e, std::string oldOp, std::string newOp, int currentLevel, int objectiveLevel) {
     std::string currentOp = e->printKindtoString();
 
-    //std::cout << "Current -> " << currentOp << " Old -> " << oldOp << " New -> " << newOp << std::endl;
-
     if(currentOp == oldOp) { //base case, found mutation
       if(currentLevel == objectiveLevel) {
         if(e->getKid(0)->printWidthtoString() == e->getKid(1)->printWidthtoString()) {
-          //std::cout << "OldOP: " << oldOp << " NewOp: " << newOp << std::endl;
           return build(e->getKid(0), e->getKid(1), newOp);
         }
       } else currentLevel++;
@@ -311,7 +247,7 @@ std::vector<ConstraintSet> Mutator::applyMutations(std::string oldOp, std::strin
 
   }
 
-  //AIS and AIU need special treatment. TO-DO: refactor code to unify both functions
+  //AIS and AIU need special treatment.
   ref<Expr> Mutator::mutate_AIS(ref<Expr> e, int currentLevel, int objectiveLevel, std::string op) {
       ref<Expr> left = e->getKid(0), right = e->getKid(1), intValue;
       std::string currentOp = e->printKindtoString();
@@ -323,14 +259,8 @@ std::vector<ConstraintSet> Mutator::applyMutations(std::string oldOp, std::strin
         if( is_number(left->printValuetoString()) || is_number(right->printValuetoString()) ) { //This means it is an arithmetic op.
           if( currentLevel == objectiveLevel ) {
 
-            //print left and right values, types and width
-            //std::cout << "Left: " << left->printValuetoString() << " -- Right: " << right->printValuetoString() << std::endl;
-            //std::cout << "LeftType: " << left->printKindtoString() << " -- RightType: " << right->printKindtoString() << std::endl;
-            //std::cout << "LeftWidth: " << left->printWidthtoString() << " -- RightWidth: " << right->printWidthtoString() << std::endl;
-
             ExprBuilder *Builder = 0;
             Builder = createDefaultExprBuilder(); //this will build the value
-            //intValue = Builder->Constant((uint64_t)(1), Expr::Int32);
 
             if(is_number(left->printValuetoString()) && right->printKindtoString() == Constant) {
               //In this case, apply operator to the left side
@@ -338,8 +268,7 @@ std::vector<ConstraintSet> Mutator::applyMutations(std::string oldOp, std::strin
               intValue = Builder->Constant((uint64_t)(1), e->getKid(1)->getWidth());
               return build(e->getKid(0), build(e->getKid(1), intValue, op), currentOp);
 
-              //if(!(intValue->getWidth()==right->getWidth() && "type mismatch"))
-            } else if(left->printKindtoString() == Constant) {//if (is_number(right->printValuetoString()) &&
+            } else if(left->printKindtoString() == Constant) {
               //In this case, apply operator to the right side
               intValue = Builder->Constant((uint64_t)(1), e->getKid(0)->getWidth());
               return build(build(e->getKid(0), intValue, op), e->getKid(1), currentOp);
@@ -358,81 +287,53 @@ std::vector<ConstraintSet> Mutator::applyMutations(std::string oldOp, std::strin
     }
 
   ref<Expr> Mutator::mutate_AIU(ref<Expr> e, int currentLevel, int objectiveLevel) {
-    ref<Expr> left = e->getKid(0), right = e->getKid(1), intValue;
-    std::string currentOp = e->printKindtoString();
-    int num;
+      ref<Expr> left = e->getKid(0), right = e->getKid(1), intValue;
+      std::string currentOp = e->printKindtoString();
+      std::string op = "Sub";
+      std::string Constant = "Constant";
+      std::string Zero = "0";
 
-    if(e->getNumKids() == 2) {
-      if( is_number(left->printValuetoString()) || is_number(right->printValuetoString()) ) { //This means it is an arithmetic op.
-        if( currentLevel == objectiveLevel ) {
+      if(e->getNumKids() == 2) {
+        if( is_number(left->printValuetoString()) || is_number(right->printValuetoString()) ) { //This means it is an arithmetic op.
+          if( currentLevel == objectiveLevel ) {
 
-          ExprBuilder *Builder = 0;
-          Builder = createDefaultExprBuilder(); //this will build the value
+            ExprBuilder *Builder = 0;
+            Builder = createDefaultExprBuilder(); //this will build the value
 
-          if(is_number(left->printValuetoString()) &&
-             right->printKindtoString() == "Constant") {
-            std::stringstream auxNum(left->printValuetoString());
-            auxNum >> num;
-            intValue = Builder->Constant((uint64_t)(-num), Expr::Int32);
+            if(is_number(left->printValuetoString()) && 
+                         left->printValuetoString() != Zero &&
+                         right->printKindtoString() == Constant) {
+              //In this case, apply operator to the left side
+              //(Slt (ReadLSB w32 0 a) 1)) -> (Slt (Sub 0 (ReadLSB w32 0 a)) 1)
+              intValue = Builder->Constant((uint64_t)(0), e->getKid(1)->getWidth());
+              return build(e->getKid(0), build(intValue, e->getKid(1), op), currentOp);
 
-            if(!(intValue->getWidth()==right->getWidth() && "type mismatch") && (currentOp == "Sle" || currentOp == "Ule")) {
-              return build(left, right, currentOp);
-            } else return build(intValue, right, currentOp);
-          } else if (is_number(right->printValuetoString()) &&
-            left->printKindtoString() == "Constant"){
-            std::stringstream auxNum(right->printValuetoString());
-            auxNum >> num;
-            intValue = Builder->Constant((uint64_t)(-num), Expr::Int32);
+            } else if(right->printValuetoString() != Zero &&
+                      left->printKindtoString() == Constant) {
+              //In this case, apply operator to the right side
+              intValue = Builder->Constant((uint64_t)(0), e->getKid(0)->getWidth());
+              return build(build(intValue, e->getKid(0), op), e->getKid(1), currentOp);
+            }
+          } else currentLevel++;
+        }
+        left = mutate_AIU(left, currentLevel, objectiveLevel);
+        right = mutate_AIU(right, currentLevel, objectiveLevel);
 
-            if(!(intValue->getWidth()==left->getWidth() && "type mismatch") && (currentOp == "Sle" || currentOp == "Ule")) {
-              return build(left, right, currentOp);
-            } else return build(left, intValue, currentOp);
-          }
-        } else currentLevel++;
-      }
-      left = mutate_AIU(left, currentLevel, objectiveLevel);
-      right = mutate_AIU(right, currentLevel, objectiveLevel);
-
-      //std::cout << "Voy a hacer build de " << currentOp << std::endl;
-      //std::cout << "left = " << left->printValuetoString() << "\nright = " << right->printValuetoString() << std::endl;
-
-      if(!(left->getWidth()==right->getWidth() && "type mismatch") && (currentOp == "Sle" || currentOp == "Ule"))
-        return build(e->getKid(0), e->getKid(1), currentOp);
-      else return build(left, right, currentOp);
-
-      //return build(mutate_AIU(e->getKid(0), currentLevel, objectiveLevel), mutate_AIU(e->getKid(1), currentLevel, objectiveLevel), currentOp);
-    } else if (e->getNumKids() == 1 && !excludedOperators(e)) {
-      return mutate_AIU(e->getKid(0), currentLevel, objectiveLevel);
-    } else return e;
+        return build(left, right, currentOp);
+        
+        } else if (e->getNumKids() == 1 && !excludedOperators(e)) {
+        return mutate_AIU(e->getKid(0), currentLevel, objectiveLevel);
+      } else return e;
 
   }
 
   ref<Expr> Mutator::build(ref<Expr> LHS, ref<Expr> RHS, std::string newKind) {
-    
-
-
-    //DEBUG
-    //std::cout << "RECIBO TIPO: " << newKind << std::endl;
-    //std::cout << "LHS: " << LHS->printWidthtoString() << " -- RHS: " << RHS->printWidthtoString() << std::endl;
-    //std::cout << "LHS: " << LHS->printKindtoString() << " -- RHS: " << RHS->printKindtoString() << std::endl;
-    //std::cout << "LHS: " << LHS->printValuetoString() << " -- RHS: " << RHS->printValuetoString() << std::endl;
-
+  
     ref<Expr> result = LHS;
 
     ExprBuilder *Builder = 0;
     Builder = createDefaultExprBuilder();
 
-    /*if(LHS->printWidthtoString() != RHS->printWidthtoString()) {
-      std::cout << "Los tipos son diferentes, a ver si hay un aserto.\n";
-      std::cout << "LHS: " << LHS->printWidthtoString() << " -- RHS: " << RHS->printWidthtoString() << std::endl;
-      std::cout << "LHS: " << LHS->printKindtoString() << " -- RHS: " << RHS->printKindtoString() << std::endl;
-      std::cout << "LHS: " << LHS->printValuetoString() << " -- RHS: " << RHS->printValuetoString() << std::endl;
-      std::cout << "LLAMADA DENTRO: Y el tipo que voy a crear es: " << newKind << std::endl;
-    } */
-    //if(!(l->getWidth()==r->getWidth() && "type mismatch"))
-
-
-    //std::cout << "Y ANTES DE LA COMPARACION ES: " << newKind << std::endl;
     // Compare
     if(newKind == "Eq") result = Builder->Eq(LHS, RHS);
     else if(newKind == "Ne") result = build(Builder->Eq(LHS, RHS), RHS, "Not");
@@ -573,9 +474,7 @@ std::vector<ConstraintSet> Mutator::applyMutations(std::string oldOp, std::strin
     std::vector<ConstraintSet> res;
     std::vector<ConstraintSet> aux;
 
-    /* Debe negar todos los condicionales.
-    Crea una función de aplicar mutaciones que reciba un Expr
-    y lo niegue por completo, no solo el LHS */
+    //MISE: Negates all conditions. We added five special cases for this.
 
     aux = applyMutations(cs, "Slt", "NOTSlt");
     res.insert(res.end(), aux.begin(), aux.end());
@@ -594,7 +493,6 @@ std::vector<ConstraintSet> Mutator::applyMutations(std::string oldOp, std::strin
 
     aux = applyMutations(cs, "Xor", "NOTXor");
     res.insert(res.end(), aux.begin(), aux.end());
-
-
+    
     return res;
   }
