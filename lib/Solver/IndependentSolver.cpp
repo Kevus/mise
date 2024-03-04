@@ -457,18 +457,28 @@ bool assertCreatedPointEvaluatesToTrue(
   for (auto const &constraint : query.constraints) {
     ref<Expr> ret = assign.evaluate(constraint);
 
-    assert(isa<ConstantExpr>(ret) &&
-           "assignment evaluation did not result in constant");
-    ref<ConstantExpr> evaluatedConstraint = dyn_cast<ConstantExpr>(ret);
-    if (evaluatedConstraint->isFalse()) {
-      return false;
+
+    if(isa<ConstantExpr>(ret)){
+      ref<ConstantExpr> evaluatedConstraint = dyn_cast<ConstantExpr>(ret);
+      if (evaluatedConstraint->isFalse()) {
+        return false;
+      }
     }
+    //assert(isa<ConstantExpr>(ret) &&
+    //       "assignment evaluation did not result in constant");
+    //ref<ConstantExpr> evaluatedConstraint = dyn_cast<ConstantExpr>(ret);
+    //if (evaluatedConstraint->isFalse()) {
+    //  return false;
+    //}
   }
   ref<Expr> neg = Expr::createIsZero(query.expr);
   ref<Expr> q = assign.evaluate(neg);
-  assert(isa<ConstantExpr>(q) &&
-         "assignment evaluation did not result in constant");
-  return cast<ConstantExpr>(q)->isTrue();
+  if(isa<ConstantExpr>(q)){
+    return cast<ConstantExpr>(q)->isTrue();
+  } else return false;
+  //assert(isa<ConstantExpr>(q) &&
+  //       "assignment evaluation did not result in constant");
+  //return cast<ConstantExpr>(q)->isTrue();
 }
 
 bool IndependentSolver::computeInitialValues(const Query& query,

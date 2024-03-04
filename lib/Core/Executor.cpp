@@ -4991,8 +4991,8 @@ bool Executor::getSymbolicSolutionMISE(const ExecutionState &state,
         solver->setTimeout(time::Span());
         if (!success) {
           klee_warning("unable to compute initial values with mutants (invalid constraints?)!");
-          ExprPPrinter::printQuery(llvm::errs(), state.constraints,
-                                  ConstantExpr::alloc(0, Expr::Bool));
+          //ExprPPrinter::printQuery(llvm::errs(), state.constraints,
+          //                        ConstantExpr::alloc(0, Expr::Bool));
         } else {
           for (unsigned i = 0; i != state.symbolics.size(); ++i)
             mutant.push_back(std::make_pair(state.symbolics[i].first->name, values[i]));
