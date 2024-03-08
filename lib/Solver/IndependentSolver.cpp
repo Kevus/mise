@@ -457,28 +457,37 @@ bool assertCreatedPointEvaluatesToTrue(
   for (auto const &constraint : query.constraints) {
     ref<Expr> ret = assign.evaluate(constraint);
 
+    if(!(isa<ConstantExpr>(ret) &&
+           "assignment evaluation did not result in constant")){
+            llvm::errs() << "assignment evaluation did not result in constant\n";
+            llvm::errs() << "ret: " << ret << "\n";
+            llvm::errs() << "constraint: " << constraint << "\n";
 
-    if(isa<ConstantExpr>(ret)){
-      ref<ConstantExpr> evaluatedConstraint = dyn_cast<ConstantExpr>(ret);
-      if (evaluatedConstraint->isFalse()) {
-        return false;
-      }
-    }
+            return false;
+           }
+
     //assert(isa<ConstantExpr>(ret) &&
     //       "assignment evaluation did not result in constant");
-    //ref<ConstantExpr> evaluatedConstraint = dyn_cast<ConstantExpr>(ret);
-    //if (evaluatedConstraint->isFalse()) {
-    //  return false;
-    //}
+    ref<ConstantExpr> evaluatedConstraint = dyn_cast<ConstantExpr>(ret);
+    if (evaluatedConstraint->isFalse()) {
+      return false;
+    }
   }
   ref<Expr> neg = Expr::createIsZero(query.expr);
   ref<Expr> q = assign.evaluate(neg);
-  if(isa<ConstantExpr>(q)){
-    return cast<ConstantExpr>(q)->isTrue();
-  } else return false;
+
+  if(!(isa<ConstantExpr>(q) &&
+           "assignment evaluation did not result in constant")){
+            llvm::errs() << "assignment evaluation did not result in constant\n";
+            llvm::errs() << "q: " << q << "\n";
+            llvm::errs() << "neg: " << neg << "\n";
+
+            return false;
+           }
+
   //assert(isa<ConstantExpr>(q) &&
   //       "assignment evaluation did not result in constant");
-  //return cast<ConstantExpr>(q)->isTrue();
+  return cast<ConstantExpr>(q)->isTrue();
 }
 
 bool IndependentSolver::computeInitialValues(const Query& query,
@@ -551,7 +560,11 @@ bool IndependentSolver::computeInitialValues(const Query& query,
       values.push_back(retMap[arr]);
     }
   }
-  assert(assertCreatedPointEvaluatesToTrue(query, objects, values, retMap) && "should satisfy the equation");
+  //assert(assertCreatedPointEvaluatesToTrue(query, objects, values, retMap) && "should satisfy the equation");
+  if(!assertCreatedPointEvaluatesToTrue(query, objects, values, retMap)){
+    llvm::errs() << "should satisfy the equation\n";
+    return false;
+  } 
   delete factors;
   return true;
 }

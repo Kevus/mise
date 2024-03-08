@@ -4915,8 +4915,8 @@ bool Executor::getSymbolicSolution(const ExecutionState &state,
   solver->setTimeout(time::Span());
   if (!success) {
     klee_warning("unable to compute initial values (invalid constraints?)!");
-    ExprPPrinter::printQuery(llvm::errs(), state.constraints,
-                             ConstantExpr::alloc(0, Expr::Bool));
+    //ExprPPrinter::printQuery(llvm::errs(), state.constraints,
+    //                         ConstantExpr::alloc(0, Expr::Bool));
     return false;
   }
   
