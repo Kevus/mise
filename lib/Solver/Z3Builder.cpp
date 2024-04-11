@@ -485,6 +485,9 @@ Z3ASTHandle Z3Builder::construct(ref<Expr> e, int *width_out) {
 /** if *width_out!=1 then result is a bitvector,
     otherwise it is a bool */
 Z3ASTHandle Z3Builder::constructActual(ref<Expr> e, int *width_out) {
+  //MISE: this method has been modified to avoid different widths
+  //Normally, in KLEE, it is controlled by assertions, but this would abort the operation
+  //if an invalid mutant is created. This is not the case in MISE, so we need to handle it here
   int width;
   if (!width_out)
     width_out = &width;
@@ -595,9 +598,20 @@ Z3ASTHandle Z3Builder::constructActual(ref<Expr> e, int *width_out) {
 
   // Arithmetic
   case Expr::Add: {
+    //MISE: Modified to avoid different widths here
+    int width_left;
+
     AddExpr *ae = cast<AddExpr>(e);
     Z3ASTHandle left = construct(ae->left, width_out);
+    width_left = *width_out;
+
     Z3ASTHandle right = construct(ae->right, width_out);
+    if(width_left != *width_out) {
+      //MISE: abort operation if widths are different
+      Z3ASTHandle result = construct(e);
+      return result;
+    }
+
     assert(*width_out != 1 && "uncanonicalized add");
     Z3ASTHandle result = Z3ASTHandle(Z3_mk_bvadd(ctx, left, right), ctx);
     assert(getBVLength(result) == static_cast<unsigned>(*width_out) &&
@@ -606,9 +620,20 @@ Z3ASTHandle Z3Builder::constructActual(ref<Expr> e, int *width_out) {
   }
 
   case Expr::Sub: {
+    //MISE: Modified to avoid different widths here
+    int width_left;
+
     SubExpr *se = cast<SubExpr>(e);
     Z3ASTHandle left = construct(se->left, width_out);
+    width_left = *width_out;
+
     Z3ASTHandle right = construct(se->right, width_out);
+    if(width_left != *width_out) {
+      //MISE: abort operation if widths are different
+      Z3ASTHandle result = construct(e);
+      return result;
+    }
+    
     assert(*width_out != 1 && "uncanonicalized sub");
     Z3ASTHandle result = Z3ASTHandle(Z3_mk_bvsub(ctx, left, right), ctx);
     assert(getBVLength(result) == static_cast<unsigned>(*width_out) &&
@@ -844,11 +869,23 @@ Z3ASTHandle Z3Builder::constructActual(ref<Expr> e, int *width_out) {
   }
 
   case Expr::Sle: {
+
+    //MISE: edited to avoid different sizes of left and right
+    int width_left;
     SleExpr *se = cast<SleExpr>(e);
     Z3ASTHandle left = construct(se->left, width_out);
+    width_left = *width_out;
+
     Z3ASTHandle right = construct(se->right, width_out);
+
+    if (width_left != *width_out) {
+      Z3ASTHandle result = construct(e);
+      return result;
+    }
+
     assert(*width_out != 1 && "uncanonicalized sle");
     *width_out = 1;
+
     return sbvLeExpr(left, right);
   }
 

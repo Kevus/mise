@@ -192,7 +192,7 @@ std::vector<ConstraintSet> Mutator::applyMutations(ConstraintSet cs, std::string
 
     //res.push_back(cs);
     for(auto &constraint : cs) {
-      int mutations = countMutations_AIS(constraint);
+      int mutations = countMutations_AIS(constraint); //MISE - FIX: countMutations_AIS(constraint);
       for(int i = 0; i < mutations; i++) {
         ConstraintSet mutatedConstraint;
         for(auto &subConstraint : cs) {
@@ -261,6 +261,7 @@ std::vector<ConstraintSet> Mutator::applyMutations(ConstraintSet cs, std::string
       ref<Expr> left = e->getKid(0), right = e->getKid(1), intValue;
       std::string currentOp = e->printKindtoString();
       std::string Constant = "Constant";
+      std::string Forbidden = "Extract";
 
 
 
@@ -271,13 +272,14 @@ std::vector<ConstraintSet> Mutator::applyMutations(ConstraintSet cs, std::string
             ExprBuilder *Builder = 0;
             Builder = createDefaultExprBuilder(); //this will build the value
 
-            if(is_number(left->printValuetoString()) && right->printKindtoString() == Constant) {
+            if(is_number(left->printValuetoString()) && right->printKindtoString() == Constant \
+               && Forbidden.find(right->printKindtoString()) == std::string::npos){
               //In this case, apply operator to the left side
               //(Slt (ReadLSB w32 0 a) 1)) -> (Slt (Add (ReadLSB w32 0 a) 1) 1)
               intValue = Builder->Constant((uint64_t)(1), e->getKid(1)->getWidth());
               return build(e->getKid(0), build(e->getKid(1), intValue, op), currentOp);
 
-            } else if(left->printKindtoString() == Constant) {
+            } else if(left->printKindtoString() == Constant && Forbidden.find(left->printKindtoString()) == std::string::npos){
               //In this case, apply operator to the right side
               intValue = Builder->Constant((uint64_t)(1), e->getKid(0)->getWidth());
               return build(build(e->getKid(0), intValue, op), e->getKid(1), currentOp);
@@ -443,8 +445,8 @@ std::vector<ConstraintSet> Mutator::applyMutations(ConstraintSet cs, std::string
     aux = applyMutations(cs, "Add", "Sub");
     res.insert(res.end(), aux.begin(), aux.end());
 
-    aux = applyMutations(cs, "Sub", "Add");
-    res.insert(res.end(), aux.begin(), aux.end());
+    //aux = applyMutations(cs, "Sub", "Add");
+    //res.insert(res.end(), aux.begin(), aux.end());
 
     aux = applyMutations(cs, "Mul", "SDiv");
     res.insert(res.end(), aux.begin(), aux.end());
