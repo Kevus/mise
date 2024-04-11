@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import os
+import sys
+
+class MiseDCleaner:
+    def __init__(self, path):
+        self.path = path
+
+    def run_fdupes(self):
+        if os.path.isdir(self.path):
+            os.system(f"fdupes -d -N -l {self.path}duplicates_removed.txt {self.path}")
+            print("Removed duplicated mutants (only ktest)")
+        else:
+            print("Invalid path")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python3 mise-dcleaner.py <path>")
+        sys.exit(1)
+
+    path = sys.argv[1]
+    cleaner = MiseDCleaner(path)
+    cleaner.run_fdupes()

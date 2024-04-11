@@ -79,7 +79,8 @@ class KTest:
         width = str(len(str(max(1, len(self.objects) - 1))))
 
         # print ktest info
-        print('ktest file : %r' % self.path, file=sio)
+        # MISE: hide ktest file path to help removing duplicates
+        # print('ktest file : %r' % self.path, file=sio)
         print('args       : %r' % self.args, file=sio)
         print('num objects: %r' % len(self.objects), file=sio)
 
