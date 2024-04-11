@@ -22,7 +22,7 @@ Mutator::Mutator(std::string operators) {
     file.close();
   } else {
     klee_warning("MISE: Could not open file with mutation operators. Using default operators.");
-    mutationOperators = {"ROR", "ARB", "ARS", "AIU", "AIS", "COR", "COI"};
+    mutationOperators = {"ROR", "ARB", "AIU", "AIS", "COR", "COI"};
   }
 }
 
@@ -44,6 +44,16 @@ std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs) {
   std::vector<ConstraintSet> res;// = apply_ROR(cs);
   std::vector<ConstraintSet> aux;
 
+  //Explanation on missing mutation operators:
+  //ARS: There is not increment and decrement operator in Query expressions.
+  //ASR: There is not coumpound assignment operator in Query expressions.
+  //ARU: As there is not negative operator in Query expressions, we cannot apply this mutation.
+  //     although its behaviour would be the exact same as AIU.
+  //ADS: There is not increment and decrement operator in Query expressions.
+  //COD: KLEE will never generate constraints with explicit negations, so we cannot apply this mutation.
+  //LOR: Its behavior is the same as COR, so we will not apply this mutation.
+
+
   //Apply only the operators from mutationOperators
   for(auto &op : mutationOperators) {
     if(op == "ROR") {
@@ -55,11 +65,6 @@ std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs) {
       aux = apply_ARB(cs);
       res.insert(res.end(), aux.begin(), aux.end());
       klee_message("MISE: Generated %ld ARB mutants at %s.", aux.size(), currentDateTime().c_str());
-
-    } else if(op == "ARS") {
-      aux = apply_ARB(cs);
-      res.insert(res.end(), aux.begin(), aux.end());
-      klee_message("MISE: Generated %ld ARS mutants at %s.", aux.size(), currentDateTime().c_str());
 
     } else if(op == "AIU") {
       aux = apply_AIU(cs);
