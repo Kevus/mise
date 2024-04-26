@@ -10,11 +10,23 @@ class MiseDCleaner:
 
     def run_fdupes(self):
         if os.path.isdir(self.path):
+            # Ejecutar fdupes para encontrar y eliminar duplicados
             os.system(f"fdupes -d -N -l {self.path}duplicates_removed.txt {self.path}")
-            print("Removed duplicated mutants (only ktest)")
+
+            # Eliminar archivos con el mismo nombre que los duplicados eliminados
+            with open(f"{self.path}duplicates_removed.txt", "r") as file:
+                for line in file:
+                    # Obtener el nombre del archivo eliminado
+                    filename = line.strip()
+                    # Eliminar todos los archivos con el mismo nombre, independientemente de su extensión
+                    for root, dirs, files in os.walk(self.path):
+                        for file in files:
+                            if os.path.splitext(file)[0] == os.path.splitext(filename)[0]:
+                                os.remove(os.path.join(root, file))
+
+            print("Removed duplicated mutants (only ktest) and associated files")
         else:
             print("Invalid path")
-
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

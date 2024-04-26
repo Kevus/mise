@@ -652,7 +652,8 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
 
     unsigned id = ++m_numTotalTests;
 
-    if (success) {
+    if (success) { 
+      
       KTest b;
       b.numArgs = m_argc;
       b.args = m_argv;
@@ -764,6 +765,7 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
       //do the same as above with each mutant
       for (unsigned i=0; i<mutants.size(); i++) {
         std::vector< std::pair<std::string, std::vector<unsigned char> > > mutant = mutants[i];
+
         KTest m;
         m.numArgs = m_argc;
         m.args = m_argv;
@@ -774,11 +776,11 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
         assert(m.objects);
         for (unsigned j=0; j<m.numObjects; j++) {
           KTestObject *o = &m.objects[j];
-          o->name = const_cast<char*>(mutant[i].first.c_str());
-          o->numBytes = mutant[i].second.size();
+          o->name = const_cast<char*>(mutant[j].first.c_str());
+          o->numBytes = mutant[j].second.size();
           o->bytes = new unsigned char[o->numBytes];
           assert(o->bytes);
-          std::copy(mutant[i].second.begin(), mutant[i].second.end(), o->bytes);
+          std::copy(mutant[j].second.begin(), mutant[j].second.end(), o->bytes);
         }
 
         if (!kTest_toFile(&m, getOutputFilename(getTestFilename("ktest", ++id)).c_str())) {

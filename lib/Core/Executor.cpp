@@ -4947,22 +4947,6 @@ bool Executor::getSymbolicSolutionMISE(const ExecutionState &state,
       Mutator mutator(mutationOperators);
       std::vector<ConstraintSet> mutations = mutator.mutate(extendedConstraints);
 
-      //print the extendedConstraints labeled as original
-      //llvm::errs() << "original: ";
-      //for (auto it = extendedConstraints.begin(); it != extendedConstraints.end(); ++it){
-      //  llvm::errs() << *it << " ";
-      //}
-      //llvm::errs() << "\n";
-
-      //print the content of mutations
-      //for (unsigned i = 0; i != mutations.size(); ++i){
-      //  llvm::errs() << "mutation[" << i << "]: ";
-      //  for (auto it = mutations[i].begin(); it != mutations[i].end(); ++it){
-      //    llvm::errs() << *it << " ";
-      //  }
-      //  llvm::errs() << "\n";
-      //}
-
       //do the same as above for each mutation
       for (unsigned i = 0; i != mutations.size(); ++i){
         solver->setTimeout(coreSolverTimeout);
@@ -4998,6 +4982,7 @@ bool Executor::getSymbolicSolutionMISE(const ExecutionState &state,
             mutant.push_back(std::make_pair(state.symbolics[i].first->name, values[i]));
 
           mutants.push_back(mutant);
+          mutant.clear();
           CSmutations.push_back(mutations[i]);
         } 
       } 
