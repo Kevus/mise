@@ -6,7 +6,7 @@
 # License. See LICENSE.TXT for details.
 #
 #===------------------------------------------------------------------------===#
-add_executable(klee
+add_executable(mise
   main.cpp
 )
 
@@ -14,13 +14,13 @@ set(KLEE_LIBS
   kleeCore
 )
 
-target_link_libraries(klee ${KLEE_LIBS})
-target_include_directories(klee PRIVATE ${KLEE_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS})
-target_compile_options(klee PRIVATE ${KLEE_COMPONENT_CXX_FLAGS})
-target_compile_definitions(klee PRIVATE ${KLEE_COMPONENT_CXX_DEFINES})
+target_link_libraries(mise ${KLEE_LIBS})
+target_include_directories(mise PRIVATE ${KLEE_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS})
+target_compile_options(mise PRIVATE ${KLEE_COMPONENT_CXX_FLAGS})
+target_compile_definitions(mise PRIVATE ${KLEE_COMPONENT_CXX_DEFINES})
 
 
-install(TARGETS klee RUNTIME DESTINATION bin)
+install(TARGETS mise RUNTIME DESTINATION bin)
 
 # The KLEE binary depends on the runtimes
-add_dependencies(klee BuildKLEERuntimes)
+add_dependencies(mise BuildKLEERuntimes)
