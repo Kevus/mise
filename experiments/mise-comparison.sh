@@ -31,7 +31,7 @@ cd src
 find . -executable -type f | xargs -I '{}' extract-bc '{}'
 
 # Now we will run KLEE on the coreutils received as an argument
-tools=(base64) # basename cat chcon chgrp chmod chown chroot cksum comm cp csplit cut \
+coreutils=(base64) # basename cat chcon chgrp chmod chown chroot cksum comm cp csplit cut \
         # date dd df dircolors dirname du echo env expand expr factor false fmt fold  \
         # head hostid hostname id join link ln logname ls mkdir \
         # mkfifo mknod mktemp mv nice nl nohup od paste pathchk pinky pr printenv printf \
