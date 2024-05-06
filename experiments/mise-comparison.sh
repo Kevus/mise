@@ -75,7 +75,7 @@ do
     # Run klee-replay on each test case separately
     for j in test*.ktest
     do
-        timeout 60 klee-replay $(readlink -f ../../../obj-gcov/src/$i) $j >> klee-$i.out
+        timeout 60 klee-replay $(readlink -f ../../../obj-gcov/src/$i) $j >> klee-$j.out
     done
 
     cd ..
@@ -85,7 +85,7 @@ do
     # Run klee-replay on each test case separately
     for j in test*.ktest
     do
-        timeout 60 klee-replay $(readlink -f ../../../obj-gcov/src/$i) $j >> mise-$i.out
+        timeout 60 klee-replay $(readlink -f ../../../obj-gcov/src/$i) $j >> mise-$j.out
     done
 
     # Now we are prepared to run mucpp
@@ -117,12 +117,12 @@ do
         cd obj-llvm/src
         cd klee-out-$i
 
-        mkdir -p $HOME/mise-results/$j
+        mkdir -p $HOME/mise-results/$i/$j
 
         # Run klee-replay on each test case separately
         for k in test*.ktest
         do
-            timeout 60 klee-replay $(readlink -f ../../../obj-gcov/src/$i) $k >> $HOME/mise-results/$j/klee-$i.out
+            timeout 60 klee-replay $(readlink -f ../../../obj-gcov/src/$i) $k >> $HOME/mise-results/$i/$j/klee-$i.out
         done
 
         cd ..
@@ -131,7 +131,7 @@ do
         # Run klee-replay on each test case separately
         for k in test*.ktest
         do
-            timeout 60 klee-replay $(readlink -f ../../../obj-gcov/src/$i) $k >> $HOME/mise-results/$j/mise-$i.out
+            timeout 60 klee-replay $(readlink -f ../../../obj-gcov/src/$i) $k >> $HOME/mise-results/$i/$j/mise-$i.out
         done
 
         cd ../../..
