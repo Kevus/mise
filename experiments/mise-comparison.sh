@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 # This script is used to compare MISE with KLEE. SUT=coreutils
 # MISE: must be in $HOME/mise/build/bin/mise
 # KLEE: muse be in path
@@ -12,6 +13,8 @@ if [ ! -d coreutils-9.4 ]; then
 fi
 
 cd coreutils-9.4
+coreutilsdir=$(pwd)
+
 mucpp clean
 echo "ROR" > list_operators.txt
 
@@ -31,7 +34,7 @@ cd src
 find . -executable -type f | xargs -I '{}' extract-bc '{}'
 
 # Now we will run KLEE on the coreutils received as an argument
-coreutils=(base64) # basename cat chcon chgrp chmod chown chroot cksum comm cp csplit cut \
+coreutils=(basename cat) # basename cat chcon chgrp chmod chown chroot cksum comm cp csplit cut \
         # date dd df dircolors dirname du echo env expand expr factor false fmt fold  \
         # head hostid hostname id join link ln logname ls mkdir \
         # mkfifo mknod mktemp mv nice nl nohup od paste pathchk pinky pr printenv printf \
@@ -40,12 +43,12 @@ coreutils=(base64) # basename cat chcon chgrp chmod chown chroot cksum comm cp c
         # uptime users wc whoami who yes)
 
 for i in "${coreutils[@]}"
-do
+do	
     klee --simplify-sym-indices --output-module --solver-backend=z3 \
     --max-memory=1000 --disable-inlining --optimize --use-forked-solver \
     --use-cex-cache --libc=uclibc --posix-runtime \
     --external-calls=all --only-output-states-covering-new \
-    --max-sym-array-size=4096 --max-solver-time=30s --max-time=3min \
+    --max-sym-array-size=4096 --max-solver-time=30s --max-time=1min \
     --watchdog --max-memory-inhibit=false --max-static-fork-pct=1 \
     --max-static-solve-pct=1 --max-static-cpfork-pct=1 --switch-type=internal \
     --search=random-path --search=nurs:covnew \
@@ -59,7 +62,7 @@ do
     --max-memory=1000 --disable-inlining --optimize --use-forked-solver \
     --use-cex-cache --libc=uclibc --posix-runtime \
     --external-calls=all --only-output-states-covering-new \
-    --max-sym-array-size=4096 --max-solver-time=30s --max-time=3min \
+    --max-sym-array-size=4096 --max-solver-time=30s --max-time=1min \
     --watchdog --max-memory-inhibit=false --max-static-fork-pct=1 \
     --max-static-solve-pct=1 --max-static-cpfork-pct=1 --switch-type=internal \
     --search=random-path --search=nurs:covnew \
@@ -75,7 +78,7 @@ do
     # Run klee-replay on each test case separately
     for j in test*.ktest
     do
-        timeout 60 klee-replay $(readlink -f ../../../obj-gcov/src/$i) $j >> klee-$j.out
+        timeout 60 klee-replay $(readlink -f ../../../obj-gcov/src/$i) $j >> klee-$i.out
     done
 
     cd ..
@@ -85,7 +88,7 @@ do
     # Run klee-replay on each test case separately
     for j in test*.ktest
     do
-        timeout 60 klee-replay $(readlink -f ../../../obj-gcov/src/$i) $j >> mise-$j.out
+        timeout 60 klee-replay $(readlink -f ../../../obj-gcov/src/$i) $j >> mise-$i.out
     done
 
     # Now we are prepared to run mucpp
@@ -94,9 +97,11 @@ do
     # Check if src/$i.c exists
     if [ ! -f src/$i.c ]; then
         echo "Error: src/$i.c not found. Looking for it..."
+	ls
         # Check if lib/$i.c exists. Otherwise, exit and prompt the error
         if [ ! -f lib/$i.c ]; then
             echo "Error: lib/$i.c not found. Exiting..."
+	    ls
             exit 1
         else
             mucpp applyall lib/$i.c --
@@ -136,7 +141,8 @@ do
 
         cd ../../..
     done
-    
-
+    cd $coreutilsdir
+    mucpp clean
+    cd obj-llvm/src
 done
 

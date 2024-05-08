@@ -30,7 +30,7 @@ class MiseDCleaner:
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python3 mise-dcleaner.py <path>")
+        print("Usage: mise-dcleaner <path>")
         sys.exit(1)
 
     path = sys.argv[1]
