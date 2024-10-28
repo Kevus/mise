@@ -13,6 +13,7 @@ using namespace klee;
 
 Mutator::Mutator(std::string operators) {
   //Try to open the file included in the operators string
+  std::cout << "Operators: " << operators << std::endl;
   std::ifstream file(operators);
   std::string line;
   if(file.is_open()) {
@@ -40,11 +41,11 @@ void Mutator::printOriginalConstraints() {
   originalConstraints.printConstraints();
 }
 
-std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs) {
-  std::vector<ConstraintSet> res;// = apply_ROR(cs);
+std::vector<std::pair<ConstraintSet, std::string>> Mutator::mutate(ConstraintSet cs) {
+  std::vector<std::pair<ConstraintSet, std::string>> res; // Ahora guarda ConstraintSet + tipo de mutación
   std::vector<ConstraintSet> aux;
 
-  //Explanation on missing mutation operators:
+    //Explanation on missing mutation operators:
   //ARS: There is not increment and decrement operator in Query expressions.
   //ASR: There is not coumpound assignment operator in Query expressions.
   //ARU: As there is not negative operator in Query expressions, we cannot apply this mutation.
@@ -53,39 +54,46 @@ std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs) {
   //COD: KLEE will never generate constraints with explicit negations, so we cannot apply this mutation.
   //LOR: Its behavior is the same as COR, so we will not apply this mutation.
 
-
-  //Apply only the operators from mutationOperators
   for(auto &op : mutationOperators) {
     if(op == "ROR") {
       aux = apply_ROR(cs);
-      res.insert(res.end(), aux.begin(), aux.end());
+      for (const auto &mutant : aux)
+        res.emplace_back(mutant, "ROR"); // Guarda el mutante con la etiqueta "ROR"
       klee_message("MISE: Generated %ld ROR mutants at %s.", aux.size(), currentDateTime().c_str());
 
     } else if(op == "ARB") {
       aux = apply_ARB(cs);
-      res.insert(res.end(), aux.begin(), aux.end());
+      for (const auto &mutant : aux)
+        res.emplace_back(mutant, "ARB"); // Guarda el mutante con la etiqueta "ARB"
       klee_message("MISE: Generated %ld ARB mutants at %s.", aux.size(), currentDateTime().c_str());
 
     } else if(op == "AIU") {
       aux = apply_AIU(cs);
-      res.insert(res.end(), aux.begin(), aux.end());
+      for (const auto &mutant : aux)
+        res.emplace_back(mutant, "AIU"); // Guarda el mutante con la etiqueta "AIU"
       klee_message("MISE: Generated %ld AIU mutants at %s.", aux.size(), currentDateTime().c_str());
 
     } else if(op == "AIS") {
       aux = apply_AIS(cs, "Add");
-      res.insert(res.end(), aux.begin(), aux.end());
+      for (const auto &mutant : aux)
+        res.emplace_back(mutant, "AIS_Add"); // Guarda el mutante con la etiqueta "AIS_Add"
+      
       aux = apply_AIS(cs, "Sub");
-      res.insert(res.end(), aux.begin(), aux.end());
+      for (const auto &mutant : aux)
+        res.emplace_back(mutant, "AIS_Sub"); // Guarda el mutante con la etiqueta "AIS_Sub"
+      
       klee_message("MISE: Generated %ld AIS mutants at %s.", aux.size()*2, currentDateTime().c_str());
 
     } else if(op == "COR") {
       aux = apply_COR(cs);
-      res.insert(res.end(), aux.begin(), aux.end());
+      for (const auto &mutant : aux)
+        res.emplace_back(mutant, "COR"); // Guarda el mutante con la etiqueta "COR"
       klee_message("MISE: Generated %ld COR mutants at %s.", aux.size(), currentDateTime().c_str());
 
     } else if(op == "COI") {
       aux = apply_COI(cs);
-      res.insert(res.end(), aux.begin(), aux.end());
+      for (const auto &mutant : aux)
+        res.emplace_back(mutant, "COI"); // Guarda el mutante con la etiqueta "COI"
       klee_message("MISE: Generated %ld COI mutants at %s.", aux.size(), currentDateTime().c_str());
 
     } else {
@@ -94,7 +102,7 @@ std::vector<ConstraintSet> Mutator::mutate(ConstraintSet cs) {
   }
 
   klee_message("MISE: Total mutants generated: %ld", res.size());
-    
+
   return res;
 }
 

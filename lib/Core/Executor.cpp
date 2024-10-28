@@ -4926,69 +4926,60 @@ bool Executor::getSymbolicSolution(const ExecutionState &state,
 }
 
 bool Executor::getSymbolicSolutionMISE(const ExecutionState &state,
-                                   std::vector< 
-                                   std::pair<std::string,
-                                   std::vector<unsigned char> > >
-                                   &res,
-                                   std::vector<std::vector< 
-                                   std::pair<std::string,
-                                   std::vector<unsigned char> > >
-                                   >
-                                   &mutants,
-                                   std::vector<ConstraintSet> &CSmutations,
-                                   std::string mutationOperators)
-{
-  if(getSymbolicSolution(state, res)){
-      //MISE: create mutants
-      std::vector<std::pair<std::string, std::vector<unsigned char>>> mutant;
+                                       std::vector<std::pair<std::string, std::vector<unsigned char>>> &res,
+                                       std::vector<std::vector<std::pair<std::string, std::vector<unsigned char>>>> &mutants,
+                                       std::vector<ConstraintSet> &CSmutations,
+                                       std::vector<std::string> &mutationTypes, // Nuevo: Para guardar los tipos de mutantes
+                                       std::string mutationOperators) {
+  if (getSymbolicSolution(state, res)) {
+    std::vector<std::pair<std::string, std::vector<unsigned char>>> mutant;
+    ConstraintSet extendedConstraints(state.constraints);
 
-      ConstraintSet extendedConstraints(state.constraints);
+    Mutator mutator(mutationOperators);
+    std::vector<std::pair<ConstraintSet, std::string>> mutations = mutator.mutate(extendedConstraints);
 
-      Mutator mutator(mutationOperators);
-      std::vector<ConstraintSet> mutations = mutator.mutate(extendedConstraints);
+    for (const auto &[mutation, mutationType] : mutations) {
+      solver->setTimeout(coreSolverTimeout);
 
-      //do the same as above for each mutation
-      for (unsigned i = 0; i != mutations.size(); ++i){
-        solver->setTimeout(coreSolverTimeout);
+      extendedConstraints = mutation;
+      ConstraintManager cm(extendedConstraints);
 
-        extendedConstraints = mutations[i];
-        ConstraintManager cm(extendedConstraints);
+      for (auto& pi : state.cexPreferences) {
+        bool mustBeTrue;
+        bool success =
+          solver->mustBeTrue(extendedConstraints, Expr::createIsZero(pi),
+            mustBeTrue, state.queryMetaData);
 
-        for (auto& pi: state.cexPreferences) {
-          bool mustBeTrue;
-          bool success =
-            solver->mustBeTrue(extendedConstraints, Expr::createIsZero(pi),
-              mustBeTrue, state.queryMetaData);
+        if (!success) break;
 
-          if (!success) break;
+        if (!mustBeTrue)
+          cm.addConstraint(pi);
+      }
 
-          if (!mustBeTrue)
-            cm.addConstraint(pi);
-        }
+      std::vector<std::vector<unsigned char>> values;
+      std::vector<const Array*> objects;
+      for (unsigned i = 0; i != state.symbolics.size(); ++i)
+        objects.push_back(state.symbolics[i].second);
 
-        std::vector< std::vector<unsigned char> > values;
-        std::vector<const Array*> objects;
+      bool success = solver->getInitialValues(extendedConstraints, objects, values, state.queryMetaData);
+      solver->setTimeout(time::Span());
+
+      if (!success) {
+        klee_warning("unable to compute initial values with mutants (invalid constraints?)!");
+      } else {
         for (unsigned i = 0; i != state.symbolics.size(); ++i)
-          objects.push_back(state.symbolics[i].second);
-        bool success = solver->getInitialValues(extendedConstraints, objects, values,
-                                                state.queryMetaData);
-        solver->setTimeout(time::Span());
-        if (!success) {
-          klee_warning("unable to compute initial values with mutants (invalid constraints?)!");
-          //ExprPPrinter::printQuery(llvm::errs(), state.constraints,
-          //                        ConstantExpr::alloc(0, Expr::Bool));
-        } else {
-          for (unsigned i = 0; i != state.symbolics.size(); ++i)
-            mutant.push_back(std::make_pair(state.symbolics[i].first->name, values[i]));
+          mutant.push_back(std::make_pair(state.symbolics[i].first->name, values[i]));
 
-          mutants.push_back(mutant);
-          mutant.clear();
-          CSmutations.push_back(mutations[i]);
-        } 
-      } 
+        mutants.push_back(mutant);
+        mutant.clear();
+        CSmutations.push_back(mutation);
+        mutationTypes.push_back(mutationType); // Guardar el tipo del mutante
+      }
+    }
   }
   return true;
 }
+
 
 void Executor::getCoveredLines(const ExecutionState &state,
                                std::map<const std::string*, std::set<unsigned> > &res) {

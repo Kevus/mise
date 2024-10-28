@@ -77,26 +77,23 @@ void stop(int s){
   ;
 }
 
+using namespace llvm;
+using namespace klee;
+
 namespace {
   cl::opt<std::string>
   InputFile(cl::desc("<input bytecode>"), cl::Positional, cl::init("-"));
 
-  cl::list<std::string>
-  InputArgv(cl::ConsumeAfter,
-            cl::desc("<program arguments>..."));
+  cl::list<std::string> InputArgv(
+    cl::Positional,
+    cl::desc("<program arguments>..."),
+    cl::ZeroOrMore);
 
 
   /*** Test case options ***/
 
   cl::OptionCategory TestCaseCat("Test case options",
                                  "These options select the files to generate for each test case.");
-
-  //New option to include a .txt file with a list of mutation operators
-  cl::opt<std::string>
-  MutationsFile("mutations-file",
-                cl::desc("File with a list of mutation operators to be used"),
-                cl::init(""),
-                cl::cat(TestCaseCat));
 
   cl::opt<bool>
   WriteNone("write-no-tests",
@@ -111,6 +108,11 @@ namespace {
 
   cl::opt<bool>
   WriteKQueries("write-kqueries",
+                cl::desc("Write .kquery files for each test case (default=false)"),
+                cl::cat(TestCaseCat));
+
+  cl::opt<std::string>
+  MutationsFile("mutations-file",
                 cl::desc("Write .kquery files for each test case (default=false)"),
                 cl::cat(TestCaseCat));
 
@@ -253,13 +255,13 @@ namespace {
   
   cl::list<std::string>
   ReplayKTestFile("replay-ktest-file",
-                  cl::desc("Specify a .ktest file to use for replay"),
-                  cl::value_desc(".ktest file"),
+                  cl::desc("Specify a ktest file to use for replay"),
+                  cl::value_desc("ktest file"),
                   cl::cat(ReplayCat));
 
   cl::list<std::string>
   ReplayKTestDir("replay-ktest-dir",
-                 cl::desc("Specify a directory to replay .ktest files from"),
+                 cl::desc("Specify a directory to replay ktest files from"),
                  cl::value_desc("output directory"),
                  cl::cat(ReplayCat));
 
@@ -312,6 +314,7 @@ namespace klee {
 extern cl::opt<std::string> MaxTime;
 class ExecutionState;
 }
+
 
 /***/
 
@@ -636,24 +639,27 @@ void KleeHandler::processTestCase(const ExecutionState &state,
 //MISE: Overloaded processTestCase to support mutations
 /* Outputs all files (.ktest, .kquery, .cov etc.) describing a test case */
 void KleeHandler::processTestCaseMISE(const ExecutionState &state,
-                                  const char *errorMessage,
-                                  const char *errorSuffix) {
+                                      const char *errorMessage,
+                                      const char *errorSuffix) {
   if (!WriteNone) {
-    std::vector< std::pair<std::string, std::vector<unsigned char> > > out;
-    std::vector< std::vector< std::pair<std::string, std::vector<unsigned char> > > > mutants;
+    std::vector<std::pair<std::string, std::vector<unsigned char>>> out;
+    std::vector<std::vector<std::pair<std::string, std::vector<unsigned char>>>> mutants;
     std::vector<ConstraintSet> mutations;
+    std::vector<std::string> mutationTypes; // Nuevo vector para almacenar los tipos de mutación
 
-    bool success = m_interpreter->getSymbolicSolutionMISE(state, out, mutants, mutations, MutationsFile.c_str());
+    bool success = m_interpreter->getSymbolicSolutionMISE(state, out, mutants, mutations, mutationTypes, MutationsFile.c_str());
 
-    if (!success)
+    if (!success) {
       klee_warning("unable to get symbolic solution, losing test case");
+    }
 
     const auto start_time = time::getWallTime();
-
     unsigned id = ++m_numTotalTests;
+    std::string baseFileName = getTestFilename("ktest", id); // Nombre del archivo base
+    std::map<std::string, int> mutationCounter; // Contador para cada tipo de mutante
 
     if (success) { 
-      
+      // Generación del archivo base
       KTest b;
       b.numArgs = m_argc;
       b.args = m_argv;
@@ -662,7 +668,7 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
       b.numObjects = out.size();
       b.objects = new KTestObject[b.numObjects];
       assert(b.objects);
-      for (unsigned i=0; i<b.numObjects; i++) {
+      for (unsigned i = 0; i < b.numObjects; i++) {
         KTestObject *o = &b.objects[i];
         o->name = const_cast<char*>(out[i].first.c_str());
         o->numBytes = out[i].second.size();
@@ -671,13 +677,13 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
         std::copy(out[i].second.begin(), out[i].second.end(), o->bytes);
       }
 
-      if (!kTest_toFile(&b, getOutputFilename(getTestFilename("ktest", id)).c_str())) {
+      if (!kTest_toFile(&b, getOutputFilename(baseFileName).c_str())) {
         klee_warning("unable to write output test case, losing it");
       } else {
         ++m_numGeneratedTests;
       }
 
-      for (unsigned i=0; i<b.numObjects; i++)
+      for (unsigned i = 0; i < b.numObjects; i++)
         delete[] b.objects[i].bytes;
       delete[] b.objects;
     }
@@ -690,8 +696,7 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
 
     if (m_pathWriter) {
       std::vector<unsigned char> concreteBranches;
-      m_pathWriter->readStream(m_interpreter->getPathStreamID(state),
-                               concreteBranches);
+      m_pathWriter->readStream(m_interpreter->getPathStreamID(state), concreteBranches);
       auto f = openTestFile("path", id);
       if (f) {
         for (const auto &branch : concreteBranches) {
@@ -702,15 +707,13 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
 
     if (errorMessage || WriteKQueries) {
       std::string constraints;
-      m_interpreter->getConstraintLog(state, constraints,Interpreter::KQUERY);
+      m_interpreter->getConstraintLog(state, constraints, Interpreter::KQUERY);
       auto f = openTestFile("kquery", id);
       if (f)
         *f << constraints;
     }
 
     if (WriteCVCs) {
-      // FIXME: If using Z3 as the core solver the emitted file is actually
-      // SMT-LIBv2 not CVC which is a bit confusing
       std::string constraints;
       m_interpreter->getConstraintLog(state, constraints, Interpreter::STP);
       auto f = openTestFile("cvc", id);
@@ -720,16 +723,15 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
 
     if (WriteSMT2s) {
       std::string constraints;
-        m_interpreter->getConstraintLog(state, constraints, Interpreter::SMTLIB2);
-        auto f = openTestFile("smt2", id);
-        if (f)
-          *f << constraints;
+      m_interpreter->getConstraintLog(state, constraints, Interpreter::SMTLIB2);
+      auto f = openTestFile("smt2", id);
+      if (f)
+        *f << constraints;
     }
 
     if (m_symPathWriter) {
       std::vector<unsigned char> symbolicBranches;
-      m_symPathWriter->readStream(m_interpreter->getSymbolicPathStreamID(state),
-                                  symbolicBranches);
+      m_symPathWriter->readStream(m_interpreter->getSymbolicPathStreamID(state), symbolicBranches);
       auto f = openTestFile("sym.path", id);
       if (f) {
         for (const auto &branch : symbolicBranches) {
@@ -739,7 +741,7 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
     }
 
     if (WriteCov) {
-      std::map<const std::string*, std::set<unsigned> > cov;
+      std::map<const std::string*, std::set<unsigned>> cov;
       m_interpreter->getCoveredLines(state, cov);
       auto f = openTestFile("cov", id);
       if (f) {
@@ -751,6 +753,8 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
       }
     }
 
+    
+
     if (m_numGeneratedTests == MaxTests)
       m_interpreter->setHaltExecution(true);
 
@@ -761,82 +765,56 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
         *f << "Time to generate test case: " << elapsed_time << '\n';
     }
 
+    // Generación de archivos para los mutantes
     if (success) {
-      //do the same as above with each mutant
-      for (unsigned i=0; i<mutants.size(); i++) {
-        std::vector< std::pair<std::string, std::vector<unsigned char> > > mutant = mutants[i];
+      for (unsigned i = 0; i < mutants.size(); i++) {
+        // Recupera el tipo de mutante
+        std::string mutationType = mutationTypes[i];
+        mutationCounter[mutationType]++;
 
+        // Genera el nombre del archivo con el tipo de mutante
+        std::string mutantFileName = baseFileName + "-" + mutationType + "-" + std::to_string(mutationCounter[mutationType]) + ".ktest";
+
+        // Procesa cada mutante como antes
         KTest m;
         m.numArgs = m_argc;
         m.args = m_argv;
         m.symArgvs = 0;
         m.symArgvLen = 0;
-        m.numObjects = out.size(); //MISE: necessary to process correct number
+        m.numObjects = mutants[i].size();
         m.objects = new KTestObject[m.numObjects];
         assert(m.objects);
-        for (unsigned j=0; j<m.numObjects; j++) {
+
+        for (unsigned j = 0; j < m.numObjects; j++) {
           KTestObject *o = &m.objects[j];
-          o->name = const_cast<char*>(mutant[j].first.c_str());
-          o->numBytes = mutant[j].second.size();
+          o->name = const_cast<char*>(mutants[i][j].first.c_str());
+          o->numBytes = mutants[i][j].second.size();
           o->bytes = new unsigned char[o->numBytes];
           assert(o->bytes);
-          std::copy(mutant[j].second.begin(), mutant[j].second.end(), o->bytes);
+          std::copy(mutants[i][j].second.begin(), mutants[i][j].second.end(), o->bytes);
         }
 
-        if (!kTest_toFile(&m, getOutputFilename(getTestFilename("ktest", ++id)).c_str())) {
+        if (!kTest_toFile(&m, getOutputFilename(mutantFileName).c_str())) {
           klee_warning("unable to write output test case, losing it");
-          --id;
         } else {
           ++m_numGeneratedTests;
           ++m_numTotalTests;
         }
 
-        for (unsigned j=0; j<m.numObjects; j++)
+        for (unsigned j = 0; j < m.numObjects; j++)
           delete[] m.objects[j].bytes;
         delete[] m.objects;
 
-        if (errorMessage) {
-              auto f = openTestFile(errorSuffix, id);
-              if (f)
-                *f << errorMessage;
-           }
+        if (m_numGeneratedTests == MaxTests)
+          m_interpreter->setHaltExecution(true);
 
-            if (errorMessage || WriteKQueries) {
-              std::string constraints;
-              m_interpreter->getConstraintLogMISE(mutations.at(i), constraints, Interpreter::KQUERY);
-              auto f = openTestFile("kquery", id);
-              if (f)
-                *f << constraints;
-            }
-
-            if (WriteCVCs) {
-              // FIXME: If using Z3 as the core solver the emitted file is actually
-              // SMT-LIBv2 not CVC which is a bit confusing
-              std::string constraints;
-              m_interpreter->getConstraintLogMISE(mutations.at(i), constraints, Interpreter::STP);
-              auto f = openTestFile("cvc", id);
-              if (f)
-                *f << constraints;
-            }
-
-            if (WriteSMT2s) {
-              std::string constraints;
-                m_interpreter->getConstraintLogMISE(mutations.at(i), constraints, Interpreter::SMTLIB2);
-                auto f = openTestFile("smt2", id);
-                if (f)
-                  *f << constraints;
-            }
-
-            if (m_numGeneratedTests == MaxTests)
-              m_interpreter->setHaltExecution(true);
-
-            if (WriteTestInfo) {
-              time::Span elapsed_time(time::getWallTime() - start_time);
-              auto f = openTestFile("info", id);
-              if (f)
-                *f << "Time to generate test case: " << elapsed_time << '\n';
-            }
-      }//end for mutants
+        if (WriteTestInfo) {
+          time::Span elapsed_time(time::getWallTime() - start_time);
+          auto f = openTestFile("info", id);
+          if (f)
+            *f << "Time to generate mutant: " << elapsed_time << '\n';
+        }
+      }
     }
 
     if (errorMessage && OptExitOnError) {
@@ -845,6 +823,7 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
     }
   }
 }
+
 
 
   // load a .path file
@@ -940,11 +919,27 @@ static std::string strip(std::string &in) {
   return in.substr(lead, trail-lead);
 }
 
+//static void parseArguments(int argc, char **argv) {
+//  cl::SetVersionPrinter(klee::printVersion);
+  // This version always reads response files
+//  cl::ParseCommandLineOptions(argc, argv, " mise\n");
+//}
+
 static void parseArguments(int argc, char **argv) {
   cl::SetVersionPrinter(klee::printVersion);
-  // This version always reads response files
-  cl::ParseCommandLineOptions(argc, argv, " klee\n");
+  // Depuración: mensaje antes de analizar las opciones
+  llvm::outs() << "Parsing command line options...\n";
+    std::cout << argc << std::endl;
+  for (int i = 0; i < argc; i++) {
+    std::cout << argv[i] << std::endl;
+  }
+  cl::ParseCommandLineOptions(argc, argv, " mise\n");
+  llvm::outs() << "Value of WriteKQueries: " << WriteKQueries << "\n";
+  llvm::outs() << "Value of MutationsFile: " << MutationsFile << "\n";
+  // Depuración: mensaje después de analizar las opciones
+  llvm::outs() << "Finished parsing command line options.\n";
 }
+
 
 static void
 preparePOSIX(std::vector<std::unique_ptr<llvm::Module>> &loadedModules,
@@ -1358,12 +1353,13 @@ linkWithUclibc(StringRef libDir, std::string opt_suffix,
 int main(int argc, char **argv, char **envp) {
   atexit(llvm_shutdown); // Call llvm_shutdown() on exit
 
+  llvm::InitializeNativeTarget();
+
   KCommandLine::KeepOnlyCategories(
      {&ChecksCat,      &DebugCat,    &ExtCallsCat, &ExprCat,     &LinkCat,
       &MemoryCat,      &MergeCat,    &MiscCat,     &ModuleCat,   &ReplayCat,
       &SearchCat,      &SeedingCat,  &SolvingCat,  &StartCat,    &StatsCat,
-      &TerminationCat, &TestCaseCat, &TestGenCat,  &ExecTreeCat, &ExecTreeCat});
-  llvm::InitializeNativeTarget();
+      &TerminationCat, &TestCaseCat, &TestGenCat,  &ExecTreeCat});
 
   parseArguments(argc, argv);
   sys::PrintStackTraceOnErrorSignal(argv[0]);
