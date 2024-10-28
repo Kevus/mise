@@ -919,25 +919,10 @@ static std::string strip(std::string &in) {
   return in.substr(lead, trail-lead);
 }
 
-//static void parseArguments(int argc, char **argv) {
-//  cl::SetVersionPrinter(klee::printVersion);
-  // This version always reads response files
-//  cl::ParseCommandLineOptions(argc, argv, " mise\n");
-//}
-
 static void parseArguments(int argc, char **argv) {
   cl::SetVersionPrinter(klee::printVersion);
-  // Depuración: mensaje antes de analizar las opciones
-  llvm::outs() << "Parsing command line options...\n";
-    std::cout << argc << std::endl;
-  for (int i = 0; i < argc; i++) {
-    std::cout << argv[i] << std::endl;
-  }
+// This version always reads response files
   cl::ParseCommandLineOptions(argc, argv, " mise\n");
-  llvm::outs() << "Value of WriteKQueries: " << WriteKQueries << "\n";
-  llvm::outs() << "Value of MutationsFile: " << MutationsFile << "\n";
-  // Depuración: mensaje después de analizar las opciones
-  llvm::outs() << "Finished parsing command line options.\n";
 }
 
 
