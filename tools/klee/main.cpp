@@ -798,7 +798,7 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
           klee_warning("unable to write output test case, losing it");
         } else {
           ++m_numGeneratedTests;
-          ++m_numTotalTests;
+          //++m_numTotalTests;
         }
 
         for (unsigned j = 0; j < m.numObjects; j++)
@@ -814,6 +814,7 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
           if (f)
             *f << "Time to generate mutant: " << elapsed_time << '\n';
         }
+        
       }
     }
 
