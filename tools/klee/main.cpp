@@ -65,6 +65,7 @@ DISABLE_WARNING_POP
 
 //MISE (DEBUG): added iostream
 #include <iostream>
+#include <regex>
 
 using namespace llvm;
 using namespace klee;
@@ -77,17 +78,41 @@ void stop(int s){
   ;
 }
 
+// MISE: Function to run a command and capture its output
+bool runCommand(const std::string& cmd, std::string& output) {
+  // Use popen to run the command and capture output
+  FILE* pipe = popen(cmd.c_str(), "r");
+  if (!pipe) {
+    klee_warning("Failed to run command: %s", cmd.c_str());
+    return false;
+  }
+
+  char buffer[128];
+  while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+    output += buffer;
+  }
+
+  int returnCode = pclose(pipe);
+  if (returnCode != 0) {
+    klee_warning("Command exited with code %d: %s", returnCode, cmd.c_str());
+    return false;
+  }
+
+  return true;
+}
+
 using namespace llvm;
 using namespace klee;
 
 namespace {
   cl::opt<std::string>
   InputFile(cl::desc("<input bytecode>"), cl::Positional, cl::init("-"));
+  
 
-  cl::list<std::string> InputArgv(
-    cl::Positional,
-    cl::desc("<program arguments>..."),
-    cl::ZeroOrMore);
+  cl::list<std::string>
+  InputArgv(cl::ConsumeAfter,
+          cl::desc("<program arguments>..."));
+
 
 
   /*** Test case options ***/
@@ -115,6 +140,12 @@ namespace {
   MutationsFile("mutations-file",
                 cl::desc("Write .kquery files for each test case (default=false)"),
                 cl::cat(TestCaseCat));
+
+  cl::opt<bool>
+  Clean("clean",
+        cl::desc("Clean the output directory from duplicated mutants after execution"),
+        cl::init(false),
+        cl::cat(TestCaseCat));
 
   cl::opt<bool>
   WriteSMT2s("write-smt2s",
@@ -822,6 +853,91 @@ void KleeHandler::processTestCaseMISE(const ExecutionState &state,
       m_interpreter->prepareForEarlyExit();
       klee_error("EXITING ON ERROR:\n%s\n", errorMessage);
     }
+
+    if (Clean) {
+        // Step 3.1: Locate the 'klee-last' directory
+        std::string kleeLastDir = "klee-last";
+
+        if (!llvm::sys::fs::exists(kleeLastDir) || !llvm::sys::fs::is_directory(kleeLastDir)) {
+          klee_error("Directory 'klee-last' not found in the current directory.");
+        }
+
+        // Step 3.2: List the files in the directory
+        std::vector<std::string> files;
+        std::error_code ec;
+
+        for (llvm::sys::fs::directory_iterator dirIter(kleeLastDir, ec), dirEnd;
+            dirIter != dirEnd && !ec;
+            dirIter.increment(ec)) {
+          if (!llvm::sys::fs::is_regular_file(dirIter->path()))
+            continue;
+          files.push_back(dirIter->path());
+        }
+
+        if (ec) {
+          klee_error("Error accessing directory '%s': %s", kleeLastDir.c_str(), ec.message().c_str());
+        }
+
+        // Step 3.3: Organize files into originals and variants
+        std::map<std::string, std::vector<std::string>> testVariants;
+
+        std::regex originalRegex(R"(test\d{6}\.ktest$)");
+        std::regex variantRegex(R"(test\d{6}\.ktest-.*\.ktest$)");
+
+        for (const auto& filePath : files) {
+          std::string fileName = llvm::sys::path::filename(filePath).str();
+
+          if (std::regex_match(fileName, originalRegex)) {
+            // Original test file
+            testVariants[fileName] = std::vector<std::string>();
+          } else if (std::regex_match(fileName, variantRegex)) {
+            // Variant test file
+            // Extract the base test name
+            size_t pos = fileName.find(".ktest-");
+            std::string baseName = fileName.substr(0, pos + 6);
+            testVariants[baseName].push_back(fileName);
+          }
+        }
+
+        // Step 3.4: Compare outputs and delete variants
+        for (const auto& entry : testVariants) {
+          const std::string& originalTest = entry.first;
+          const std::vector<std::string>& variants = entry.second;
+
+          // Run ktest-tool on the original test
+          std::string originalTestPath = kleeLastDir + "/" + originalTest;
+          std::string originalCmd = "ktest-tool \"" + originalTestPath + "\"";
+          std::string originalOutput;
+          if (!runCommand(originalCmd, originalOutput)) {
+            klee_warning("Failed to run command: %s", originalCmd.c_str());
+            continue;
+          }
+
+          for (const auto& variant : variants) {
+            // Run ktest-tool on the variant
+            std::string variantTestPath = kleeLastDir + "/" + variant;
+            std::string variantCmd = "ktest-tool \"" + variantTestPath + "\"";
+            std::string variantOutput;
+            if (!runCommand(variantCmd, variantOutput)) {
+              klee_warning("Failed to run command: %s", variantCmd.c_str());
+              continue;
+            }
+
+            // Compare outputs
+            if (originalOutput == variantOutput) {
+              // Outputs are the same, delete the variant file
+              std::string variantFilePath = kleeLastDir + "/" + variant;
+              std::error_code removeEc = llvm::sys::fs::remove(variantFilePath);
+              if (removeEc) {
+                klee_warning("Failed to delete file '%s': %s", variantFilePath.c_str(), removeEc.message().c_str());
+              } else {
+                klee_message("Deleted variant '%s' (output matches original)", variantFilePath.c_str());
+              }
+            }
+          }
+        }
+      }
+
   }
 }
 
@@ -1339,13 +1455,15 @@ linkWithUclibc(StringRef libDir, std::string opt_suffix,
 int main(int argc, char **argv, char **envp) {
   atexit(llvm_shutdown); // Call llvm_shutdown() on exit
 
-  llvm::InitializeNativeTarget();
 
   KCommandLine::KeepOnlyCategories(
      {&ChecksCat,      &DebugCat,    &ExtCallsCat, &ExprCat,     &LinkCat,
       &MemoryCat,      &MergeCat,    &MiscCat,     &ModuleCat,   &ReplayCat,
       &SearchCat,      &SeedingCat,  &SolvingCat,  &StartCat,    &StatsCat,
-      &TerminationCat, &TestCaseCat, &TestGenCat,  &ExecTreeCat});
+      &TerminationCat, &TestCaseCat, &TestGenCat,  &ExecTreeCat, &ExecTreeCat});
+
+  llvm::InitializeNativeTarget();
+
 
   parseArguments(argc, argv);
   sys::PrintStackTraceOnErrorSignal(argv[0]);

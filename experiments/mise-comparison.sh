@@ -67,7 +67,7 @@ do
     --max-static-solve-pct=1 --max-static-cpfork-pct=1 --switch-type=internal \
     --search=random-path --search=nurs:covnew \
     --use-batching-search --batch-instructions=10000 \
-    --mutations-file=../../list_operators.txt \
+    --mutations-file=../../list_operators.txt --clean \
     ./$i.bc --sym-args 0 1 10 --sym-args 0 2 2 --sym-files 1 8 --sym-stdin 8
 
     mv klee-out-0 mise-out-$i
