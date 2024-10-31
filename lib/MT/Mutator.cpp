@@ -13,7 +13,7 @@ using namespace klee;
 
 Mutator::Mutator(std::string operators) {
   //Try to open the file included in the operators string
-  std::cout << "Operators: " << operators << std::endl;
+  //std::cout << "Operators: " << operators << std::endl;
   std::ifstream file(operators);
   std::string line;
   if(file.is_open()) {
